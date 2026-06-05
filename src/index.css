@@ -369,4 +369,60 @@
   .expense-cell-input {
     @apply w-full min-w-16 rounded-lg border border-divider bg-surface px-2 py-1 text-center text-sm text-high outline-none focus:border-emerald-light focus:ring-2 focus:ring-emerald-light/20;
   }
+
+  .expense-action-select {
+    @apply rounded-full border border-divider bg-surface px-3 py-1.5 text-sm font-medium text-medium outline-none transition focus:border-emerald-light;
+  }
+
+  .expense-remove-btn {
+    @apply flex h-7 w-7 items-center justify-center rounded-full border border-divider text-lg leading-none text-low transition hover:border-danger hover:bg-danger/10 hover:text-danger;
+  }
+
+  .expense-save-bar {
+    @apply fixed inset-x-0 bottom-0 z-40 border-t border-divider bg-surface/95 shadow-lg backdrop-blur;
+  }
+
+  .expense-animate-item {
+    transition:
+      opacity 0.32s ease,
+      transform 0.32s ease,
+      max-height 0.32s ease,
+      margin 0.32s ease,
+      padding 0.32s ease;
+  }
+
+  .expense-animate-in {
+    animation: expense-slide-in 0.32s ease forwards;
+  }
+
+  .expense-animate-out {
+    animation: expense-slide-out 0.32s ease forwards;
+    pointer-events: none;
+  }
+
+  @keyframes expense-slide-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes expense-slide-out {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      max-height: 240px;
+    }
+
+    to {
+      opacity: 0;
+      transform: translateY(-8px) scale(0.96);
+      max-height: 0;
+    }
+  }
 }

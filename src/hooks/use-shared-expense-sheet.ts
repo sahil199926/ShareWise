@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { getExpenseSheet } from '../services/expense-sheet.service'
+import { getSharedExpenseSheet } from '../services/expense-sheet.service'
 import type { ExpenseSheetData } from '../types/expense-sheet'
 
-export const useExpenseSheet = (sheetId: string, requesterEmail: string) => {
+export const useSharedExpenseSheet = (sheetId: string) => {
   const [data, setData] = useState<ExpenseSheetData | null>(null)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -10,7 +10,7 @@ export const useExpenseSheet = (sheetId: string, requesterEmail: string) => {
   useEffect(() => {
     let cancelled = false
 
-    getExpenseSheet(sheetId, requesterEmail)
+    getSharedExpenseSheet(sheetId)
       .then((sheet) => {
         if (cancelled) return
 
@@ -31,7 +31,7 @@ export const useExpenseSheet = (sheetId: string, requesterEmail: string) => {
     return () => {
       cancelled = true
     }
-  }, [sheetId, requesterEmail])
+  }, [sheetId])
 
-  return { data, setData, error, isLoading }
+  return { data, error, isLoading }
 }

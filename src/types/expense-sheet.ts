@@ -26,9 +26,25 @@ export type ExpenseSheetData = {
   summary: ExpenseSheetSummary
 }
 
+export type ExpenseSheetDraftItem = {
+  clientId: string
+  rowIndex: number | null
+  name: string
+  shares: Record<string, number>
+  paidBy: string
+  comments: string
+}
+
 export type ExpenseSheetUpdateInput = {
+  users: string[]
+  items: ExpenseSheetDraftItem[]
+  given: Record<string, number>
+}
+
+export type ExpenseSheetSavePayload = {
+  users: string[]
   items: Array<{
-    rowIndex: number
+    name: string
     shares: Record<string, number>
     paidBy: string
     comments: string

@@ -1,9 +1,15 @@
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import type { MasterUserOption } from '../../types/sheet'
 import type {
   ExpenseSheetData,
+  ExpenseSheetDraftItem,
   ExpenseSheetSummary,
   ExpenseSheetUpdateInput,
 } from '../../types/expense-sheet'
 import { formatAmount, getPendingTone } from '../../lib/expense-sheet-utils'
+
+const REMOVE_ANIMATION_MS = 320
 
 type ExpenseSheetViewProps = {
   data: ExpenseSheetData
@@ -11,6 +17,13 @@ type ExpenseSheetViewProps = {
   summary: ExpenseSheetSummary
   draft?: ExpenseSheetUpdateInput
   onDraftChange?: (draft: ExpenseSheetUpdateInput) => void
+  masterUserOptions?: MasterUserOption[]
+  removingUsers?: Set<string>
+  removingItems?: Set<string>
+  onRemoveUser?: (userName: string) => void
+  onRemoveItem?: (clientId: string) => void
+  onAddUser?: (userName: string) => void
+  onAddItem?: (name: string) => void
 }
 
 const pendingToneClass: Record<string, string> = {
@@ -25,10 +38,34 @@ const ExpenseSheetView = ({
   summary,
   draft,
   onDraftChange,
+  masterUserOptions = [],
+  removingUsers = new Set(),
+  removingItems = new Set(),
+  onRemoveUser,
+  onRemoveItem,
+  onAddUser,
+  onAddItem,
 }: ExpenseSheetViewProps) => {
+  const [newItemName, setNewItemName] = useState('')
   const isEdit = mode === 'edit' && draft && onDraftChange
 
-  const updateShare = (rowIndex: number, userName: string, value: string) => {
+  const users = isEdit ? draft.users : data.users
+  const items: ExpenseSheetDraftItem[] = isEdit
+    ? draft.items
+    : data.items.map((item) => ({
+        clientId: String(item.rowIndex),
+        rowIndex: item.rowIndex,
+        name: item.name,
+        shares: item.shares,
+        paidBy: item.paidBy,
+        comments: item.comments,
+      }))
+
+  const availableUsers = masterUserOptions.filter(
+    (option) => !users.includes(option.name),
+  )
+
+  const updateShare = (clientId: string, userName: string, value: string) => {
     if (!draft || !onDraftChange) return
 
     const nextValue = value === '' ? 0 : Number(value)
@@ -36,7 +73,7 @@ const ExpenseSheetView = ({
     onDraftChange({
       ...draft,
       items: draft.items.map((item) =>
-        item.rowIndex === rowIndex
+        item.clientId === clientId
           ? {
               ...item,
               shares: {
@@ -50,8 +87,8 @@ const ExpenseSheetView = ({
   }
 
   const updateItemField = (
-    rowIndex: number,
-    field: 'paidBy' | 'comments',
+    clientId: string,
+    field: 'name' | 'paidBy' | 'comments',
     value: string,
   ) => {
     if (!draft || !onDraftChange) return
@@ -59,7 +96,7 @@ const ExpenseSheetView = ({
     onDraftChange({
       ...draft,
       items: draft.items.map((item) =>
-        item.rowIndex === rowIndex ? { ...item, [field]: value } : item,
+        item.clientId === clientId ? { ...item, [field]: value } : item,
       ),
     })
   }
@@ -78,53 +115,98 @@ const ExpenseSheetView = ({
     })
   }
 
-  const getDraftItem = (rowIndex: number) => {
-    return draft?.items.find((item) => item.rowIndex === rowIndex)
+  const getItemRowTotal = (item: ExpenseSheetDraftItem) => {
+    return users.reduce((sum, user) => sum + (item.shares[user] || 0), 0)
   }
 
-  const getItemRowTotal = (rowIndex: number) => {
-    const draftItem = getDraftItem(rowIndex)
+  const handleAddItem = () => {
+    if (!onAddItem) return
 
-    if (draftItem) {
-      return data.users.reduce(
-        (sum, user) => sum + (draftItem.shares[user] || 0),
-        0,
-      )
-    }
-
-    const item = data.items.find((entry) => entry.rowIndex === rowIndex)
-    return item?.total ?? 0
+    onAddItem(newItemName)
+    setNewItemName('')
   }
 
   return (
     <div className="space-y-8">
       <section>
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-base font-semibold text-high">Balances</h3>
-          <span className="text-sm text-low">
-            {data.users.length} participant
-            {data.users.length === 1 ? '' : 's'}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-low">
+              {users.length} participant{users.length === 1 ? '' : 's'}
+            </span>
+            {isEdit ? (
+              availableUsers.length > 0 ? (
+                <select
+                  defaultValue=""
+                  onChange={(event) => {
+                    const value = event.target.value
+                    if (value && onAddUser) {
+                      onAddUser(value)
+                      event.target.value = ''
+                    }
+                  }}
+                  className="expense-action-select"
+                  aria-label="Add user from MASTER"
+                >
+                  <option value="" disabled>
+                    + Add user
+                  </option>
+                  {availableUsers.map((option) => (
+                    <option key={option.email} value={option.name}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-xs text-low">
+                  All MASTER users added ·{' '}
+                  <Link to="/master" className="font-medium text-accent">
+                    Add in MASTER Sheet
+                  </Link>
+                </span>
+              )
+            ) : null}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {data.users.map((user) => {
+          {users.map((user) => {
             const pending = summary.pending[user] || 0
             const tone = getPendingTone(pending)
+            const isRemoving = removingUsers.has(user)
 
             return (
-              <article key={user} className="expense-balance-card">
+              <article
+                key={user}
+                className={`expense-balance-card expense-animate-item ${
+                  isRemoving ? 'expense-animate-out' : 'expense-animate-in'
+                }`}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-high">{user}</p>
                     <p className="mt-1 text-xs text-low">Participant</p>
                   </div>
-                  <span
-                    className={`expense-pending-pill ${pendingToneClass[tone]}`}
-                  >
-                    {pending > 0 ? '+' : ''}
-                    {formatAmount(pending)}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`expense-pending-pill ${pendingToneClass[tone]}`}
+                    >
+                      {pending > 0 ? '+' : ''}
+                      {formatAmount(pending)}
+                    </span>
+                    {isEdit && users.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => onRemoveUser?.(user)}
+                        disabled={isRemoving}
+                        className="expense-remove-btn"
+                        aria-label={`Remove ${user}`}
+                      >
+                        ×
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
@@ -148,37 +230,79 @@ const ExpenseSheetView = ({
       </section>
 
       <section className="expense-table-shell">
+        {isEdit ? (
+          <div className="flex flex-col gap-3 border-b border-divider px-4 py-4 sm:flex-row sm:items-center">
+            <input
+              type="text"
+              value={newItemName}
+              onChange={(event) => setNewItemName(event.target.value)}
+              placeholder="New item name"
+              className="input-field max-w-xs"
+            />
+            <button
+              type="button"
+              onClick={handleAddItem}
+              className="btn-secondary shrink-0"
+            >
+              + Add item
+            </button>
+          </div>
+        ) : null}
+
         <div className="overflow-x-auto">
           <table className="expense-table min-w-full">
             <thead>
               <tr className="expense-row-header">
                 <th>items</th>
-                {data.users.map((user) => (
+                {users.map((user) => (
                   <th key={user}>{user}</th>
                 ))}
                 <th>total</th>
                 <th>Price</th>
                 <th>paid by</th>
                 <th>Comments</th>
+                {isEdit ? <th className="w-12" /> : null}
               </tr>
             </thead>
             <tbody>
-              {data.items.map((item) => {
-                const draftItem = getDraftItem(item.rowIndex)
-                const rowTotal = getItemRowTotal(item.rowIndex)
+              {items.map((item) => {
+                const rowTotal = getItemRowTotal(item)
+                const isRemoving = removingItems.has(item.clientId)
 
                 return (
-                  <tr key={item.rowIndex} className="expense-row-item">
-                    <td className="font-semibold text-high">{item.name}</td>
-                    {data.users.map((user) => (
+                  <tr
+                    key={item.clientId}
+                    className={`expense-row-item expense-animate-item ${
+                      isRemoving ? 'expense-animate-out' : 'expense-animate-in'
+                    }`}
+                  >
+                    <td className="font-semibold text-high">
+                      {isEdit ? (
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={(event) =>
+                            updateItemField(
+                              item.clientId,
+                              'name',
+                              event.target.value,
+                            )
+                          }
+                          className="expense-cell-input font-semibold"
+                        />
+                      ) : (
+                        item.name
+                      )}
+                    </td>
+                    {users.map((user) => (
                       <td key={user}>
                         {isEdit ? (
                           <input
                             type="number"
-                            value={draftItem?.shares[user] ?? 0}
+                            value={item.shares[user] ?? 0}
                             onChange={(event) =>
                               updateShare(
-                                item.rowIndex,
+                                item.clientId,
                                 user,
                                 event.target.value,
                               )
@@ -195,10 +319,10 @@ const ExpenseSheetView = ({
                     <td>
                       {isEdit ? (
                         <select
-                          value={draftItem?.paidBy ?? ''}
+                          value={item.paidBy}
                           onChange={(event) =>
                             updateItemField(
-                              item.rowIndex,
+                              item.clientId,
                               'paidBy',
                               event.target.value,
                             )
@@ -206,7 +330,7 @@ const ExpenseSheetView = ({
                           className="expense-cell-input"
                         >
                           <option value="">—</option>
-                          {data.users.map((user) => (
+                          {users.map((user) => (
                             <option key={user} value={user}>
                               {user}
                             </option>
@@ -220,10 +344,10 @@ const ExpenseSheetView = ({
                       {isEdit ? (
                         <input
                           type="text"
-                          value={draftItem?.comments ?? ''}
+                          value={item.comments}
                           onChange={(event) =>
                             updateItemField(
-                              item.rowIndex,
+                              item.clientId,
                               'comments',
                               event.target.value,
                             )
@@ -235,13 +359,28 @@ const ExpenseSheetView = ({
                         item.comments || '—'
                       )}
                     </td>
+                    {isEdit ? (
+                      <td>
+                        {items.length > 1 ? (
+                          <button
+                            type="button"
+                            onClick={() => onRemoveItem?.(item.clientId)}
+                            disabled={isRemoving}
+                            className="expense-remove-btn"
+                            aria-label={`Remove ${item.name}`}
+                          >
+                            ×
+                          </button>
+                        ) : null}
+                      </td>
+                    ) : null}
                   </tr>
                 )
               })}
 
               <tr className="expense-row-total">
                 <td className="font-bold">TOTAL</td>
-                {data.users.map((user) => (
+                {users.map((user) => (
                   <td key={user} className="font-bold">
                     {formatAmount(summary.total[user] || 0)}
                   </td>
@@ -252,12 +391,12 @@ const ExpenseSheetView = ({
                 <td className="font-bold">
                   {formatAmount(summary.totalPrice)}
                 </td>
-                <td colSpan={2} />
+                <td colSpan={isEdit ? 3 : 2} />
               </tr>
 
               <tr className="expense-row-given">
                 <td className="font-bold">GIVEN</td>
-                {data.users.map((user) => (
+                {users.map((user) => (
                   <td key={user}>
                     {isEdit ? (
                       <input
@@ -276,12 +415,12 @@ const ExpenseSheetView = ({
                 <td className="font-bold">
                   {formatAmount(summary.givenTotal)}
                 </td>
-                <td colSpan={2} />
+                <td colSpan={isEdit ? 3 : 2} />
               </tr>
 
               <tr className="expense-row-pending">
                 <td className="font-bold">pending</td>
-                {data.users.map((user) => {
+                {users.map((user) => {
                   const pending = summary.pending[user] || 0
                   const tone = getPendingTone(pending)
 
@@ -300,7 +439,7 @@ const ExpenseSheetView = ({
                 >
                   {formatAmount(summary.pendingTotal)}
                 </td>
-                <td colSpan={2} />
+                <td colSpan={isEdit ? 3 : 2} />
               </tr>
             </tbody>
           </table>
@@ -310,4 +449,5 @@ const ExpenseSheetView = ({
   )
 }
 
+export { REMOVE_ANIMATION_MS }
 export default ExpenseSheetView

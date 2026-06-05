@@ -108,6 +108,8 @@ function doPost(e) {
         )
       case 'getExpenseSheet':
         return handleGetExpenseSheet_(body.sheetId, body.requesterEmail)
+      case 'getSharedExpenseSheet':
+        return handleGetSharedExpenseSheet_(body.sheetId)
       case 'updateExpenseSheet':
         return handleUpdateExpenseSheet_(
           body.sheetId,
@@ -894,7 +896,145 @@ function parseExpenseSheet_(sheet) {
   }
 }
 
+function loadExpenseSheetById_(sheetId) {
+  if (!sheetId) {
+    throw new Error('Sheet id is required')
+  }
+
+  var sheet = getSheetById_(sheetId)
+
+  if (isReservedSheetName_(sheet.getName())) {
+    throw new Error('Cannot open reserved sheet')
+  }
+
+  var parsed = parseExpenseSheet_(sheet)
+  delete parsed.meta
+
+  return parsed
+}
+
 function handleGetExpenseSheet_(sheetId, requesterEmail) {
+  try {
+    verifyMasterUser_(requesterEmail)
+
+    return jsonResponse_({
+      success: true,
+      sheet: loadExpenseSheetById_(sheetId),
+    })
+  } catch (error) {
+    return jsonResponse_({
+      success: false,
+      message: error.message || 'Failed to load sheet',
+    })
+  }
+}
+
+function handleGetSharedExpenseSheet_(sheetId) {
+  try {
+    return jsonResponse_({
+      success: true,
+      sheet: loadExpenseSheetById_(sheetId),
+    })
+  } catch (error) {
+    return jsonResponse_({
+      success: false,
+      message: error.message || 'Failed to load sheet',
+    })
+  }
+}
+
+function validateExpenseSheetUsers_(users) {
+  var userNames = normalizeStringList_(users)
+  var masterNames = getMasterUserNames_()
+  var masterLookup = {}
+  var validatedUsers = []
+
+  for (var i = 0; i < masterNames.length; i++) {
+    masterLookup[masterNames[i].toLowerCase()] = masterNames[i]
+  }
+
+  for (var u = 0; u < userNames.length; u++) {
+    var matchedName = masterLookup[userNames[u].toLowerCase()]
+
+    if (!matchedName) {
+      throw new Error('User "' + userNames[u] + '" was not found in MASTER')
+    }
+
+    validatedUsers.push(matchedName)
+  }
+
+  if (!validatedUsers.length) {
+    throw new Error('At least one user is required')
+  }
+
+  return validatedUsers
+}
+
+function applyExpenseSheetPayload_(sheet, payload) {
+  var validatedUsers = validateExpenseSheetUsers_(payload && payload.users)
+  var given = (payload && payload.given) || {}
+  var rawItems = (payload && payload.items) || []
+  var items = []
+
+  for (var i = 0; i < rawItems.length; i++) {
+    var itemName = String((rawItems[i] && rawItems[i].name) || '').trim()
+
+    if (itemName) {
+      items.push(rawItems[i])
+    }
+  }
+
+  if (!items.length) {
+    throw new Error('At least one item is required')
+  }
+
+  var itemNames = items.map(function (item) {
+    return String(item.name).trim()
+  })
+
+  sheet.clear()
+  buildExpenseSheetTemplate_(sheet, validatedUsers, itemNames)
+
+  var parsed = parseExpenseSheet_(sheet)
+
+  for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
+    var itemPayload = items[itemIndex]
+    var rowIndex = 2 + itemIndex
+
+    for (var userIndex = 0; userIndex < validatedUsers.length; userIndex++) {
+      var userName = validatedUsers[userIndex]
+      var shareValue = 0
+
+      if (itemPayload.shares && itemPayload.shares[userName] !== undefined) {
+        shareValue = parseNumber_(itemPayload.shares[userName]) || 0
+      }
+
+      sheet.getRange(rowIndex, 2 + userIndex).setValue(shareValue)
+    }
+
+    sheet
+      .getRange(rowIndex, parsed.meta.paidByCol)
+      .setValue(String((itemPayload && itemPayload.paidBy) || '').trim())
+    sheet
+      .getRange(rowIndex, parsed.meta.commentsCol)
+      .setValue(String((itemPayload && itemPayload.comments) || '').trim())
+  }
+
+  for (var givenIndex = 0; givenIndex < validatedUsers.length; givenIndex++) {
+    var givenUser = validatedUsers[givenIndex]
+    var givenValue = 0
+
+    if (given[givenUser] !== undefined) {
+      givenValue = parseNumber_(given[givenUser]) || 0
+    }
+
+    sheet.getRange(parsed.meta.givenRowIndex, 2 + givenIndex).setValue(givenValue)
+  }
+
+  SpreadsheetApp.flush()
+}
+
+function handleUpdateExpenseSheet_(sheetId, requesterEmail, payload) {
   try {
     verifyMasterUser_(requesterEmail)
 
@@ -910,80 +1050,11 @@ function handleGetExpenseSheet_(sheetId, requesterEmail) {
     if (isReservedSheetName_(sheet.getName())) {
       return jsonResponse_({
         success: false,
-        message: 'Cannot open reserved sheet',
+        message: 'Cannot update reserved sheet',
       })
     }
 
-    var parsed = parseExpenseSheet_(sheet)
-    delete parsed.meta
-
-    return jsonResponse_({
-      success: true,
-      sheet: parsed,
-    })
-  } catch (error) {
-    return jsonResponse_({
-      success: false,
-      message: error.message || 'Failed to load sheet',
-    })
-  }
-}
-
-function handleUpdateExpenseSheet_(sheetId, requesterEmail, payload) {
-  try {
-    verifyMasterUser_(requesterEmail)
-
-    if (!sheetId) {
-      return jsonResponse_({
-        success: false,
-        message: 'Sheet id is required',
-      })
-    }
-
-    var sheet = getSheetById_(sheetId)
-    var parsed = parseExpenseSheet_(sheet)
-    var items = (payload && payload.items) || []
-    var given = (payload && payload.given) || {}
-
-    for (var i = 0; i < items.length; i++) {
-      var item = items[i]
-      var rowIndex = Number(item.rowIndex)
-
-      if (!rowIndex || rowIndex < 2 || rowIndex >= parsed.meta.totalRowIndex) {
-        continue
-      }
-
-      for (var u = 0; u < parsed.users.length; u++) {
-        var userName = parsed.users[u]
-        var shareValue = 0
-
-        if (item.shares && item.shares[userName] !== undefined) {
-          shareValue = parseNumber_(item.shares[userName]) || 0
-        }
-
-        sheet.getRange(rowIndex, 2 + u).setValue(shareValue)
-      }
-
-      sheet
-        .getRange(rowIndex, parsed.meta.paidByCol)
-        .setValue(String((item && item.paidBy) || '').trim())
-      sheet
-        .getRange(rowIndex, parsed.meta.commentsCol)
-        .setValue(String((item && item.comments) || '').trim())
-    }
-
-    for (var g = 0; g < parsed.users.length; g++) {
-      var givenUser = parsed.users[g]
-      var givenValue = 0
-
-      if (given[givenUser] !== undefined) {
-        givenValue = parseNumber_(given[givenUser]) || 0
-      }
-
-      sheet.getRange(parsed.meta.givenRowIndex, 2 + g).setValue(givenValue)
-    }
-
-    SpreadsheetApp.flush()
+    applyExpenseSheetPayload_(sheet, payload)
 
     var updated = parseExpenseSheet_(sheet)
     delete updated.meta

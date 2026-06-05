@@ -70,11 +70,9 @@ export const routes: RouteObject[] = [
   {
     path: '/share-sheet/:id',
     element: (
-      <ProtectedRoute>
-        <LazyRoute>
-          <ShareSheetPage />
-        </LazyRoute>
-      </ProtectedRoute>
+      <LazyRoute>
+        <ShareSheetPage />
+      </LazyRoute>
     ),
   },
 ]
