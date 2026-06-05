@@ -1,0 +1,90 @@
+---
+description: Expense Tracker project standards, architecture, and UI principles
+alwaysApply: true
+---
+
+# Expense Tracker — Project Rules
+
+## Core Principles (always follow)
+
+1. **Responsive** — layouts must work from mobile (320px) to TV/large screens (1920px+). Use Tailwind breakpoints (`sm`, `md`, `lg`, `xl`, `2xl`), fluid spacing, and `max-w-*` containers.
+2. **Beautiful UI** — polished, modern, clean. Use consistent spacing, typography, subtle shadows, rounded corners, and a cohesive indigo/slate palette.
+3. **Pixel perfect** — align elements precisely, match spacing scale (4/8/12/16/24/32), consistent border-radius, and intentional visual hierarchy.
+4. **Database = Google Sheets** — all persistent data lives in Google Sheets via Apps Script. Never add a separate DB unless explicitly requested.
+5. **Fun** — delightful micro-interactions, smooth transitions, friendly copy, and an enjoyable user experience.
+
+## Tech Stack
+
+- **Vite** + **React 19** + **TypeScript**
+- **Tailwind CSS v4** (`@import 'tailwindcss'` in `src/index.css`)
+- **React Router DOM v7** — lazy-loaded routes with `Suspense`
+- **Axios** — HTTP client (Sheets API uses `text/plain` to avoid CORS preflight)
+- **Context API** + **localStorage** — auth state persistence
+- **ESLint** + **Prettier** — run `npm run lint` and `npm run format`
+
+## Folder Structure
+
+```
+src/
+  components/<feature>/index.tsx   # UI components (login, dashboard, etc.)
+  routes/                          # Route definitions + lazy pages
+  layout/                          # Layout wraps routes via useRoutes()
+  context/                         # React context (auth)
+  hooks/                           # Custom hooks (useAuth)
+  services/                        # Business logic (auth.service.ts)
+  lib/                             # sheets-api.ts (central API), storage.ts
+  types/                           # Shared TypeScript types
+google-apps-script/Code.gs         # Backend API deployed as Web App
+```
+
+## Architecture Rules
+
+- **Routes** live in `src/routes/index.tsx`; **layout** imports and renders them.
+- **Protected routes** use `src/components/protected-route` — redirect unauthenticated users to `/login`.
+- **Lazy load** all page components via `src/routes/lazy-pages.ts` + `Suspense`.
+- **All Google Sheets calls** go through `callSheetApi()` in `src/lib/sheets-api.ts` — never call the Apps Script URL directly from components.
+- **Business logic** belongs in `src/services/`, not in components.
+- **Apps Script** uses action-based routing (`{ action: 'login', ... }`). Add new features as new `case` handlers in `doPost`.
+- **MASTER sheet** = users/auth (`USERS | EMAIL | PASSWORD`). Future sheets (expenses, etc.) get their own `action` handlers.
+- **Env**: `VITE_SHEETS_API_URL` = deployed Apps Script Web App `/exec` URL.
+
+## Component Conventions
+
+- Functional components only, named exports via `index.tsx` per folder.
+- Use `useAuth()` for auth state; never duplicate localStorage logic in components.
+- Forms: loading state, disabled inputs while submitting, clear error messages.
+- Tailwind only — no CSS modules or inline styles unless unavoidable.
+
+## Google Sheets / Apps Script
+
+- Script is bound to spreadsheet **Expence Tracker Live** (`SPREADSHEET_ID` in `Code.gs`).
+- Deploy as Web App: Execute as **Me**, access **Anyone**.
+- Extend with generic `getSheet_(sheetName)` pattern for new sheets/tabs.
+- After Apps Script changes: create **New deployment** (not just Save) to update the live URL.
+- **MASTER** is reserved (auth only) — never list it, never allow creating/renaming to it.
+- **MASTER page + user CRUD** — only visible to users with `type: SUPER ADMIN` (route guard + API check).
+- Sheet names must be unique; reject duplicates on create.
+- List endpoints must be **server-side paginated** (default/max page size: **20**). Never load all records client-side.
+
+## Scalability (always design for growth)
+
+- Paginate all list APIs (`page`, `pageSize`, `total`, `totalPages` in response).
+- Keep API action-based — one `callSheetApi(action, payload)` entry point.
+- Put list/create logic in `src/services/`, reusable UI in `src/components/`.
+- Use responsive grids that scale from mobile (1 col) to TV (5 cols).
+- Show loading skeletons, empty states, and error states on every data view.
+
+## Routes
+
+| Path | Access |
+|------|--------|
+| `/` | Redirects to `/dashboard` |
+| `/login` | Public |
+| `/dashboard` | Protected |
+
+## Do Not
+
+- Add mock/fake login that bypasses the Sheets API.
+- Store secrets in git (`.env` is gitignored).
+- Create one-off fetch calls outside `sheets-api.ts`.
+- Break responsive layouts for desktop-only designs.

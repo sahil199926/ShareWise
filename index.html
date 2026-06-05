@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/shereWise.png" />
+    <link rel="apple-touch-icon" href="/shereWise.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="ShareWise — track and manage shared expenses with your team. Organize sheets, users, and spending in one place."
+    />
+    <meta name="application-name" content="ShareWise" />
+    <meta name="theme-color" content="#1a2e24" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="ShareWise" />
+    <meta
+      property="og:description"
+      content="Track and manage shared expenses with your team. Organize sheets, users, and spending in one place."
+    />
+    <meta property="og:image" content="/shereWise.png" />
+    <meta property="og:site_name" content="ShareWise" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="ShareWise" />
+    <meta
+      name="twitter:description"
+      content="Track and manage shared expenses with your team."
+    />
+    <meta name="twitter:image" content="/shereWise.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <title>ShareWise</title>
+    <script>
+      ;(function () {
+        const theme = localStorage.getItem('expense_tracker_theme')
+        if (theme === 'dark' || (!theme && true)) {
+          document.documentElement.classList.add('dark')
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

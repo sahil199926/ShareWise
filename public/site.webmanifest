@@ -1,0 +1,15 @@
+{
+  "name": "ShareWise",
+  "short_name": "ShareWise",
+  "description": "Track and manage shared expenses with your team.",
+  "icons": [
+    {
+      "src": "/shereWise.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#1a2e24",
+  "background_color": "#0f1412",
+  "display": "standalone"
+}
