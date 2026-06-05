@@ -13,9 +13,14 @@ import {
   toExpenseSheetDraft,
   toExpenseSheetSavePayload,
 } from '../../lib/expense-sheet-utils'
+import { findSheetUserName } from '../../lib/sheet-user-utils'
 import { getShareSheetPath } from '../../lib/sheet-urls'
 import { listMasterUserOptions } from '../../services/sheets.service'
-import { updateExpenseSheet } from '../../services/expense-sheet.service'
+import {
+  confirmPaymentStatus,
+  requestPaymentStatus,
+  updateExpenseSheet,
+} from '../../services/expense-sheet.service'
 import type { MasterUserOption } from '../../types/sheet'
 import type { ExpenseSheetUpdateInput } from '../../types/expense-sheet'
 
@@ -29,7 +34,7 @@ const EditSheetContent = ({
   requesterEmail,
 }: EditSheetContentProps) => {
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
   const {
     data: sheetData,
     setData,
@@ -47,6 +52,8 @@ const EditSheetContent = ({
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [success, setSuccess] = useState('')
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [paymentError, setPaymentError] = useState('')
 
   const draft = useMemo(() => {
     if (localDraft) return localDraft
@@ -57,8 +64,21 @@ const EditSheetContent = ({
   const liveSummary = useMemo(() => {
     if (!draft) return null
 
-    return computeLiveSummary(draft.users, draft.items, draft.given)
+    return computeLiveSummary(
+      draft.users,
+      draft.items,
+      draft.given,
+      draft.paymentStatus,
+    )
   }, [draft])
+
+  const currentSheetUser = useMemo(() => {
+    if (!sheetData || !user?.name) return null
+    return findSheetUserName(sheetData.users, user.name)
+  }, [sheetData, user?.name])
+
+  const canEdit = sheetData?.permissions?.canEdit ?? false
+  const canManagePayments = sheetData?.permissions?.canManagePayments ?? false
 
   useEffect(() => {
     if (masterUsersLoaded) return
@@ -167,20 +187,62 @@ const EditSheetContent = ({
     navigate('/login', { replace: true })
   }
 
+  const handleRequestPayment = async () => {
+    setPaymentLoading(true)
+    setPaymentError('')
+
+    try {
+      const updated = await requestPaymentStatus(sheetId, requesterEmail)
+      setData(updated)
+      setLocalDraft(null)
+      setSuccess('Payment request sent to admin.')
+    } catch (err) {
+      setPaymentError(
+        err instanceof Error ? err.message : 'Failed to request payment',
+      )
+    } finally {
+      setPaymentLoading(false)
+    }
+  }
+
+  const handleConfirmPayment = async (targetUser: string) => {
+    setPaymentLoading(true)
+    setPaymentError('')
+
+    try {
+      const updated = await confirmPaymentStatus(
+        sheetId,
+        requesterEmail,
+        targetUser,
+      )
+      setData(updated)
+      setLocalDraft(null)
+      setSuccess(`Marked ${targetUser} as paid.`)
+    } catch (err) {
+      setPaymentError(
+        err instanceof Error ? err.message : 'Failed to confirm payment',
+      )
+    } finally {
+      setPaymentLoading(false)
+    }
+  }
+
   return (
     <div className="page-shell pb-28">
       <AppHeader
         title="Edit sheet"
         onLogout={handleLogout}
         actions={
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving || isLoading || !draft}
-            className="btn-primary"
-          >
-            {isSaving ? 'Saving...' : 'Save changes'}
-          </button>
+          canEdit ? (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving || isLoading || !draft}
+              className="btn-primary"
+            >
+              {isSaving ? 'Saving...' : 'Save changes'}
+            </button>
+          ) : null
         }
       />
 
@@ -201,6 +263,9 @@ const EditSheetContent = ({
 
         {error ? <div className="alert-error mt-6">{error}</div> : null}
         {saveError ? <div className="alert-error mt-6">{saveError}</div> : null}
+        {paymentError ? (
+          <div className="alert-error mt-6">{paymentError}</div>
+        ) : null}
         {success ? <div className="alert-success mt-6">{success}</div> : null}
 
         {isLoading ? (
@@ -208,38 +273,48 @@ const EditSheetContent = ({
             <div className="skeleton h-28" />
             <div className="skeleton h-64" />
           </div>
-        ) : sheetData && draft && liveSummary ? (
+        ) : sheetData && (canEdit ? draft && liveSummary : true) ? (
           <div className="mt-6 space-y-6">
             <div className="card p-6 sm:p-8">
-              <p className="section-label">Sheet editor</p>
+              <p className="section-label">
+                {canEdit ? 'Sheet editor' : 'Sheet view'}
+              </p>
               <h2 className="mt-2 text-2xl font-semibold text-high sm:text-3xl">
                 {sheetData.name}
               </h2>
               <p className="mt-2 text-sm text-low">
-                Add or remove users and items, edit amounts, then save to sync
-                with Google Sheets.
+                {canEdit
+                  ? 'Add or remove users and items, edit amounts, then save to sync with Google Sheets.'
+                  : `View only. Editing and payment approval are limited to the sheet owner (${sheetData.ownerName || 'Unknown'}) or SUPER ADMIN.`}
               </p>
             </div>
 
             <ExpenseSheetView
               data={sheetData}
-              mode="edit"
-              summary={liveSummary}
-              draft={draft}
-              onDraftChange={updateDraft}
-              masterUserOptions={masterUsers}
+              mode={canEdit ? 'edit' : 'view'}
+              summary={canEdit && liveSummary ? liveSummary : sheetData.summary}
+              draft={canEdit ? draft ?? undefined : undefined}
+              onDraftChange={canEdit ? updateDraft : undefined}
+              masterUserOptions={canEdit ? masterUsers : []}
               removingUsers={removingUsers}
               removingItems={removingItems}
-              onAddUser={handleAddUser}
-              onAddItem={handleAddItem}
-              onRemoveUser={handleRemoveUser}
-              onRemoveItem={handleRemoveItem}
+              onAddUser={canEdit ? handleAddUser : undefined}
+              onAddItem={canEdit ? handleAddItem : undefined}
+              onRemoveUser={canEdit ? handleRemoveUser : undefined}
+              onRemoveItem={canEdit ? handleRemoveItem : undefined}
+              currentSheetUser={currentSheetUser}
+              canManagePayments={canManagePayments}
+              onRequestPayment={handleRequestPayment}
+              onConfirmPayment={
+                canManagePayments ? handleConfirmPayment : undefined
+              }
+              paymentActionLoading={paymentLoading}
             />
           </div>
         ) : null}
       </main>
 
-      {draft ? (
+      {canEdit && draft ? (
         <div className="expense-save-bar expense-animate-in">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
             <p className="text-sm text-low">

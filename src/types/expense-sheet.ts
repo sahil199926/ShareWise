@@ -1,3 +1,5 @@
+import type { PaymentStatus } from '../constants/payment-status'
+
 export type ExpenseSheetItem = {
   rowIndex: number
   name: string
@@ -16,6 +18,12 @@ export type ExpenseSheetSummary = {
   givenTotal: number
   pending: Record<string, number>
   pendingTotal: number
+  paymentStatus: Record<string, PaymentStatus>
+}
+
+export type ExpenseSheetPermissions = {
+  canEdit: boolean
+  canManagePayments: boolean
 }
 
 export type ExpenseSheetData = {
@@ -24,6 +32,9 @@ export type ExpenseSheetData = {
   users: string[]
   items: ExpenseSheetItem[]
   summary: ExpenseSheetSummary
+  ownerEmail: string
+  ownerName: string
+  permissions: ExpenseSheetPermissions
 }
 
 export type ExpenseSheetDraftItem = {
@@ -31,7 +42,8 @@ export type ExpenseSheetDraftItem = {
   rowIndex: number | null
   name: string
   shares: Record<string, number>
-  paidBy: string
+  price: number
+  paidBy: string[]
   comments: string
 }
 
@@ -39,6 +51,7 @@ export type ExpenseSheetUpdateInput = {
   users: string[]
   items: ExpenseSheetDraftItem[]
   given: Record<string, number>
+  paymentStatus: Record<string, PaymentStatus>
 }
 
 export type ExpenseSheetSavePayload = {
@@ -46,8 +59,10 @@ export type ExpenseSheetSavePayload = {
   items: Array<{
     name: string
     shares: Record<string, number>
+    price: number
     paidBy: string
     comments: string
   }>
   given: Record<string, number>
+  paymentStatus: Record<string, PaymentStatus>
 }

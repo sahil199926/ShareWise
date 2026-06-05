@@ -36,5 +36,5 @@ export const useSharedExpenseSheet = (
     }
   }, [sheetId, requesterEmail])
 
-  return { data, error, isLoading }
+  return { data, setData, error, isLoading }
 }

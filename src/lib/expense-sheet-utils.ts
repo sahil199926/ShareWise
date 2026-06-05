@@ -1,3 +1,7 @@
+import {
+  PAYMENT_STATUS,
+  type PaymentStatus,
+} from '../constants/payment-status'
 import type {
   ExpenseSheetData,
   ExpenseSheetDraftItem,
@@ -5,6 +9,31 @@ import type {
   ExpenseSheetSummary,
   ExpenseSheetUpdateInput,
 } from '../types/expense-sheet'
+
+export const createDefaultPaymentStatus = (
+  users: string[],
+): Record<string, PaymentStatus> => {
+  return Object.fromEntries(
+    users.map((user) => [user, PAYMENT_STATUS.NOT_PAID]),
+  )
+}
+
+export const normalizePaymentStatusMap = (
+  users: string[],
+  paymentStatus: Record<string, PaymentStatus> | undefined,
+): Record<string, PaymentStatus> => {
+  const defaults = createDefaultPaymentStatus(users)
+
+  if (!paymentStatus) return defaults
+
+  users.forEach((user) => {
+    if (paymentStatus[user]) {
+      defaults[user] = paymentStatus[user]
+    }
+  })
+
+  return defaults
+}
 
 export const formatAmount = (value: number) => {
   if (value === 0) return '0'
@@ -22,38 +51,104 @@ export const createClientId = () => {
   return crypto.randomUUID()
 }
 
+export const parsePaidBy = (value: string): string[] => {
+  if (!value.trim()) return []
+
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+export const formatPaidBy = (payers: string[]) => {
+  return payers.join(', ')
+}
+
+export const normalizePaidBy = (raw: string, users: string[]): string[] => {
+  const lookup = Object.fromEntries(
+    users.map((user) => [user.toLowerCase(), user]),
+  )
+
+  return parsePaidBy(raw)
+    .map((payer) => lookup[payer.toLowerCase()])
+    .filter((payer): payer is string => Boolean(payer))
+}
+
+export const computeGivenFromItems = (
+  users: string[],
+  items: Array<Pick<ExpenseSheetDraftItem, 'price' | 'paidBy'>>,
+): Record<string, number> => {
+  const given = Object.fromEntries(users.map((user) => [user, 0]))
+
+  items.forEach((item) => {
+    const payers = item.paidBy.filter((payer) => users.includes(payer))
+    if (!payers.length || !item.price) return
+
+    const share = item.price / payers.length
+
+    payers.forEach((payer) => {
+      given[payer] = (given[payer] || 0) + share
+    })
+  })
+
+  return given
+}
+
+export const syncDraftGiven = (
+  draft: ExpenseSheetUpdateInput,
+): ExpenseSheetUpdateInput => ({
+  ...draft,
+  given: computeGivenFromItems(draft.users, draft.items),
+})
+
 export const toExpenseSheetDraft = (
   data: ExpenseSheetData,
-): ExpenseSheetUpdateInput => ({
-  users: [...data.users],
-  items: data.items.map((item) => ({
+): ExpenseSheetUpdateInput => {
+  const items = data.items.map((item) => ({
     clientId: String(item.rowIndex),
     rowIndex: item.rowIndex,
     name: item.name,
     shares: { ...item.shares },
-    paidBy: item.paidBy,
+    price: item.price,
+    paidBy: normalizePaidBy(item.paidBy, data.users),
     comments: item.comments,
-  })),
-  given: { ...data.summary.given },
-})
+  }))
+
+  return {
+    users: [...data.users],
+    items,
+    given: computeGivenFromItems(data.users, items),
+    paymentStatus: normalizePaymentStatusMap(
+      data.users,
+      data.summary.paymentStatus,
+    ),
+  }
+}
 
 export const toExpenseSheetSavePayload = (
   draft: ExpenseSheetUpdateInput,
-): ExpenseSheetSavePayload => ({
-  users: draft.users,
-  given: draft.given,
-  items: draft.items.map((item) => ({
-    name: item.name.trim(),
-    shares: item.shares,
-    paidBy: item.paidBy,
-    comments: item.comments,
-  })),
-})
+): ExpenseSheetSavePayload => {
+  const given = computeGivenFromItems(draft.users, draft.items)
+
+  return {
+    users: draft.users,
+    given,
+    paymentStatus: draft.paymentStatus,
+    items: draft.items.map((item) => ({
+      name: item.name.trim(),
+      shares: item.shares,
+      price: item.price,
+      paidBy: formatPaidBy(item.paidBy),
+      comments: item.comments,
+    })),
+  }
+}
 
 export const computeLiveSummary = (
   users: string[],
-  items: Array<Pick<ExpenseSheetDraftItem, 'shares'>>,
+  items: Array<Pick<ExpenseSheetDraftItem, 'shares' | 'price'>>,
   given: Record<string, number>,
+  paymentStatus: Record<string, PaymentStatus>,
 ): ExpenseSheetSummary => {
   const total: Record<string, number> = {}
 
@@ -61,21 +156,14 @@ export const computeLiveSummary = (
     total[user] = 0
   })
 
-  let totalPrice = 0
-
   items.forEach((item) => {
-    let rowTotal = 0
-
     users.forEach((user) => {
-      const share = item.shares[user] || 0
-      total[user] += share
-      rowTotal += share
+      total[user] += item.shares[user] || 0
     })
-
-    totalPrice += rowTotal
   })
 
   const grandTotal = users.reduce((sum, user) => sum + (total[user] || 0), 0)
+  const totalPrice = items.reduce((sum, item) => sum + (item.price || 0), 0)
   const givenTotal = users.reduce((sum, user) => sum + (given[user] || 0), 0)
   const pending: Record<string, number> = {}
 
@@ -96,6 +184,7 @@ export const computeLiveSummary = (
     givenTotal,
     pending,
     pendingTotal,
+    paymentStatus: normalizePaymentStatusMap(users, paymentStatus),
   }
 }
 
@@ -105,14 +194,18 @@ export const addUserToDraft = (
 ): ExpenseSheetUpdateInput => {
   if (draft.users.includes(userName)) return draft
 
-  return {
+  return syncDraftGiven({
     users: [...draft.users, userName],
     items: draft.items.map((item) => ({
       ...item,
       shares: { ...item.shares, [userName]: 0 },
     })),
     given: { ...draft.given, [userName]: 0 },
-  }
+    paymentStatus: {
+      ...draft.paymentStatus,
+      [userName]: PAYMENT_STATUS.NOT_PAID,
+    },
+  })
 }
 
 export const removeUserFromDraft = (
@@ -124,7 +217,10 @@ export const removeUserFromDraft = (
   const nextGiven = { ...draft.given }
   delete nextGiven[userName]
 
-  return {
+  const nextPaymentStatus = { ...draft.paymentStatus }
+  delete nextPaymentStatus[userName]
+
+  return syncDraftGiven({
     users: draft.users.filter((user) => user !== userName),
     items: draft.items.map((item) => {
       const nextShares = { ...item.shares }
@@ -133,11 +229,12 @@ export const removeUserFromDraft = (
       return {
         ...item,
         shares: nextShares,
-        paidBy: item.paidBy === userName ? '' : item.paidBy,
+        paidBy: item.paidBy.filter((payer) => payer !== userName),
       }
     }),
     given: nextGiven,
-  }
+    paymentStatus: nextPaymentStatus,
+  })
 }
 
 export const addItemToDraft = (
@@ -146,7 +243,7 @@ export const addItemToDraft = (
 ): ExpenseSheetUpdateInput => {
   const trimmed = name.trim() || `Item ${draft.items.length + 1}`
 
-  return {
+  return syncDraftGiven({
     ...draft,
     items: [
       ...draft.items,
@@ -155,11 +252,12 @@ export const addItemToDraft = (
         rowIndex: null,
         name: trimmed,
         shares: Object.fromEntries(draft.users.map((user) => [user, 0])),
-        paidBy: '',
+        price: 0,
+        paidBy: [],
         comments: '',
       },
     ],
-  }
+  })
 }
 
 export const removeItemFromDraft = (
@@ -168,8 +266,8 @@ export const removeItemFromDraft = (
 ): ExpenseSheetUpdateInput => {
   if (draft.items.length <= 1) return draft
 
-  return {
+  return syncDraftGiven({
     ...draft,
     items: draft.items.filter((item) => item.clientId !== clientId),
-  }
+  })
 }

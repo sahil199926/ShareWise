@@ -1,10 +1,24 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import ExpenseSheetView from '../expense-sheet-view'
 import Logo from '../logo'
 import { useAuth } from '../../hooks/use-auth'
 import { useSharedExpenseSheet } from '../../hooks/use-shared-expense-sheet'
+import { findSheetUserName } from '../../lib/sheet-user-utils'
 import { getEditSheetPath, getShareSheetUrl } from '../../lib/sheet-urls'
+import { requestPaymentStatus } from '../../services/expense-sheet.service'
+import { applyThemeToDocument, getStoredTheme } from '../../lib/theme-storage'
+
+const useSharePageLightTheme = () => {
+  useEffect(() => {
+    document.documentElement.classList.remove('dark')
+
+    return () => {
+      const stored = getStoredTheme() ?? 'dark'
+      applyThemeToDocument(stored)
+    }
+  }, [])
+}
 
 type ShareSheetContentProps = {
   sheetId: string
@@ -12,11 +26,41 @@ type ShareSheetContentProps = {
 
 const ShareSheetContent = ({ sheetId }: ShareSheetContentProps) => {
   const { user, isAuthenticated } = useAuth()
-  const { data: sheetData, error, isLoading } = useSharedExpenseSheet(
-    sheetId,
-    user?.email,
-  )
+  const {
+    data: sheetData,
+    setData,
+    error,
+    isLoading,
+  } = useSharedExpenseSheet(sheetId, user?.email)
   const [copied, setCopied] = useState(false)
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [paymentError, setPaymentError] = useState('')
+  const [paymentSuccess, setPaymentSuccess] = useState('')
+
+  const currentSheetUser =
+    sheetData && user?.name
+      ? findSheetUserName(sheetData.users, user.name)
+      : null
+
+  const handleRequestPayment = async () => {
+    if (!user?.email) return
+
+    setPaymentLoading(true)
+    setPaymentError('')
+    setPaymentSuccess('')
+
+    try {
+      const updated = await requestPaymentStatus(sheetId, user.email)
+      setData(updated)
+      setPaymentSuccess('Payment request sent to admin.')
+    } catch (err) {
+      setPaymentError(
+        err instanceof Error ? err.message : 'Failed to request payment',
+      )
+    } finally {
+      setPaymentLoading(false)
+    }
+  }
 
   const shareUrl = getShareSheetUrl(sheetId)
 
@@ -32,7 +76,7 @@ const ShareSheetContent = ({ sheetId }: ShareSheetContentProps) => {
 
   return (
     <div className="share-page min-h-screen bg-app">
-      <header className="border-b border-divider bg-surface">
+      <header className="share-page-header border-b border-divider bg-surface">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <Logo size="md" />
           <div className="flex items-center gap-3">
@@ -58,6 +102,10 @@ const ShareSheetContent = ({ sheetId }: ShareSheetContentProps) => {
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {error ? <div className="alert-error">{error}</div> : null}
+        {paymentError ? <div className="alert-error">{paymentError}</div> : null}
+        {paymentSuccess ? (
+          <div className="alert-success">{paymentSuccess}</div>
+        ) : null}
 
         {isLoading ? (
           <div className="space-y-4">
@@ -66,7 +114,7 @@ const ShareSheetContent = ({ sheetId }: ShareSheetContentProps) => {
           </div>
         ) : sheetData ? (
           <div className="space-y-6">
-            <div className="expense-hero card p-6 sm:p-8">
+            <div className="share-page-hero expense-hero card p-6 sm:p-8">
               <p className="section-label">Shared expense sheet</p>
               <h1 className="mt-2 text-2xl font-semibold text-high sm:text-3xl">
                 {sheetData.name}
@@ -75,6 +123,11 @@ const ShareSheetContent = ({ sheetId }: ShareSheetContentProps) => {
                 Anyone with this link can view balances and expenses. No sign-in
                 required.
               </p>
+              {sheetData.ownerName ? (
+                <p className="mt-2 text-sm text-medium">
+                  Owner: {sheetData.ownerName}
+                </p>
+              ) : null}
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <input
@@ -97,19 +150,28 @@ const ShareSheetContent = ({ sheetId }: ShareSheetContentProps) => {
               data={sheetData}
               mode="view"
               summary={sheetData.summary}
+              currentSheetUser={isAuthenticated ? currentSheetUser : null}
+              onRequestPayment={
+                isAuthenticated && currentSheetUser
+                  ? handleRequestPayment
+                  : undefined
+              }
+              paymentActionLoading={paymentLoading}
             />
           </div>
         ) : null}
       </main>
 
       <footer className="border-t border-divider py-6 text-center text-xs text-low">
-        Powered by ShareWise
+        Powered by ShareWise A Eonlint Tech
       </footer>
     </div>
   )
 }
 
 const ShareSheet = () => {
+  useSharePageLightTheme()
+
   const { id } = useParams<{ id: string }>()
 
   if (!id) {

@@ -58,3 +58,40 @@ export const updateExpenseSheet = async (
 
   return response.sheet
 }
+
+export const requestPaymentStatus = async (
+  sheetId: string,
+  requesterEmail: string,
+) => {
+  const response = await callSheetApi<{ sheet: ExpenseSheetData }>(
+    'requestPaymentStatus',
+    { sheetId, requesterEmail },
+  )
+
+  if (!response.success || !response.sheet) {
+    throw new Error(
+      formatSheetApiError(response.message, 'requestPaymentStatus'),
+    )
+  }
+
+  return response.sheet
+}
+
+export const confirmPaymentStatus = async (
+  sheetId: string,
+  requesterEmail: string,
+  targetUser: string,
+) => {
+  const response = await callSheetApi<{ sheet: ExpenseSheetData }>(
+    'confirmPaymentStatus',
+    { sheetId, requesterEmail, targetUser },
+  )
+
+  if (!response.success || !response.sheet) {
+    throw new Error(
+      formatSheetApiError(response.message, 'confirmPaymentStatus'),
+    )
+  }
+
+  return response.sheet
+}

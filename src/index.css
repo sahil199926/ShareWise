@@ -278,6 +278,10 @@
     filter: brightness(1.06);
   }
 
+  .sheet-card-half-full {
+    @apply flex-[1_1_100%] translate-x-0;
+  }
+
   .expense-hero {
     background: linear-gradient(
       135deg,
@@ -321,7 +325,11 @@
   }
 
   .expense-table-shell {
-    @apply overflow-hidden rounded-2xl border border-divider bg-surface shadow-sm;
+    @apply rounded-2xl border border-divider bg-surface shadow-sm;
+  }
+
+  .expense-table-scroll {
+    @apply overflow-x-auto;
   }
 
   .expense-table {
@@ -366,8 +374,56 @@
     @apply font-bold;
   }
 
+  .expense-row-status td {
+    @apply bg-surface-elevated;
+  }
+
+  .payment-status-badge {
+    @apply inline-flex rounded-full px-2.5 py-1 text-xs font-semibold;
+  }
+
+  .payment-status-not-paid {
+    @apply bg-surface text-low;
+    border: 1px solid var(--sw-divider);
+  }
+
+  .payment-status-requested {
+    background: #fff4e5;
+    color: #9a5b00;
+  }
+
+  .payment-status-paid {
+    background: var(--sw-success-bg);
+    color: var(--sw-success);
+  }
+
+  .payment-action-btn {
+    @apply rounded-full border border-divider bg-surface px-2.5 py-1 text-xs font-medium text-medium transition hover:bg-surface-elevated disabled:opacity-60;
+  }
+
+  .payment-action-btn-confirm {
+    border-color: color-mix(in srgb, var(--sw-success) 35%, transparent);
+    color: var(--sw-success);
+  }
+
+  .payment-action-btn-confirm:hover {
+    background: var(--sw-success-bg);
+  }
+
   .expense-cell-input {
-    @apply w-full min-w-16 rounded-lg border border-divider bg-surface px-2 py-1 text-center text-sm text-high outline-none focus:border-emerald-light focus:ring-2 focus:ring-emerald-light/20;
+    @apply w-full min-w-16 rounded-lg border border-divider bg-surface px-2 py-2 text-center text-sm leading-normal text-high outline-none focus:border-emerald-light focus:ring-2 focus:ring-emerald-light/20;
+  }
+
+  .expense-cell-input-left {
+    @apply block w-full min-w-32 rounded-lg border border-divider bg-surface px-2 py-2 text-left text-sm leading-normal text-high outline-none focus:border-emerald-light focus:ring-2 focus:ring-emerald-light/20;
+  }
+
+  .expense-cell-textarea {
+    @apply block w-full min-h-9 min-w-40 resize-none overflow-hidden rounded-lg border border-divider bg-surface px-2 py-2 text-left text-sm leading-normal text-high outline-none focus:border-emerald-light focus:ring-2 focus:ring-emerald-light/20;
+  }
+
+  .expense-table-cell-interactive {
+    @apply align-top whitespace-normal overflow-visible;
   }
 
   .expense-action-select {
@@ -424,5 +480,53 @@
       transform: translateY(-8px) scale(0.96);
       max-height: 0;
     }
+  }
+
+  .share-page {
+    --sw-app-bg: #f0f4f2;
+    --sw-surface: #ffffff;
+    --sw-surface-elevated: #f7faf8;
+    --sw-text-high: #1d4133;
+    --sw-text-medium: #2a5f4b;
+    --sw-text-low: #6b7f76;
+    --sw-divider: #d8e4de;
+    --sw-danger: #c94b3a;
+    --sw-danger-bg: #fdeeed;
+    --sw-success: #2a5f4b;
+    --sw-success-bg: #e8f3ed;
+    --sw-gold: #c9a84c;
+    color: var(--sw-text-high);
+    background: var(--sw-app-bg);
+  }
+
+  .share-page-header {
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--sw-divider) 80%, transparent);
+  }
+
+  .share-page-hero {
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--sw-emerald-mid) 7%, #ffffff),
+      #ffffff
+    );
+    border-color: color-mix(in srgb, var(--sw-emerald-mid) 18%, var(--sw-divider));
+  }
+
+  .dark .share-page .expense-row-header th {
+    background: #d9d9d9;
+    color: var(--sw-text-high);
+  }
+
+  .dark .share-page .expense-row-item td {
+    background: #fff8e1;
+  }
+
+  .dark .share-page .expense-row-total td {
+    background: #cfe2f3;
+  }
+
+  .dark .share-page .type-badge-user {
+    color: #3b6ea5;
+    background: rgba(59, 110, 165, 0.12);
   }
 }

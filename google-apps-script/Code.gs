@@ -12,6 +12,7 @@
  */
 
 const MASTER_SHEET_NAME = 'MASTER'
+const SUPER_ADMIN_TYPE = 'SUPER ADMIN'
 const SPREADSHEET_ID = '1nRWaLjQCPJ8bzD5biPzn354v25GJSgqGrKXJwr7-J0Q'
 const RESERVED_SHEET_NAMES = [MASTER_SHEET_NAME]
 const DEFAULT_PAGE_SIZE = 20
@@ -115,6 +116,14 @@ function doPost(e) {
           body.sheetId,
           body.requesterEmail,
           body.payload,
+        )
+      case 'requestPaymentStatus':
+        return handleRequestPaymentStatus_(body.sheetId, body.requesterEmail)
+      case 'confirmPaymentStatus':
+        return handleConfirmPaymentStatus_(
+          body.sheetId,
+          body.requesterEmail,
+          body.targetUser,
         )
       case 'listUsers':
         return handleListUsers_(body.requesterEmail, body.page, body.pageSize)
@@ -364,9 +373,13 @@ function handleListSheets_(page, pageSize) {
       return !isReservedSheetName_(sheet.getName())
     })
     .map(function (sheet) {
+      var owner = getSheetOwnerInfo_(sheet)
+
       return {
         id: String(sheet.getSheetId()),
         name: sheet.getName(),
+        ownerEmail: owner.ownerEmail,
+        ownerName: owner.ownerName || 'Unknown',
       }
     })
 
@@ -490,6 +503,7 @@ function formatExpenseSheet_(sheet, numUsers, numItems) {
   var totalRow = lastItemRow + 1
   var givenRow = totalRow + 1
   var pendingRow = givenRow + 1
+  var statusRow = pendingRow + 1
   var lastCol = numUsers + 5
 
   sheet
@@ -511,6 +525,7 @@ function formatExpenseSheet_(sheet, numUsers, numItems) {
 
   sheet.getRange(givenRow, 1).setFontWeight('bold')
   sheet.getRange(pendingRow, 1).setFontWeight('bold')
+  sheet.getRange(statusRow, 1).setFontWeight('bold')
 
   sheet.setColumnWidth(1, 140)
 
@@ -537,6 +552,7 @@ function buildExpenseSheetTemplate_(sheet, userNames, itemNames) {
   var totalRow = lastItemRow + 1
   var givenRow = totalRow + 1
   var pendingRow = givenRow + 1
+  var statusRow = pendingRow + 1
 
   var header = ['items']
   for (var u = 0; u < numUsers; u++) {
@@ -576,12 +592,20 @@ function buildExpenseSheetTemplate_(sheet, userNames, itemNames) {
   }
   values.push(pendingRowValues)
 
+  var statusRowValues = ['status']
+  for (var s = 0; s < numUsers; s++) {
+    statusRowValues.push('Not Paid')
+  }
+  for (var e = 0; e < 4; e++) {
+    statusRowValues.push('')
+  }
+  values.push(statusRowValues)
+
   sheet.getRange(1, 1, values.length, lastCol).setValues(values)
 
   for (var itemRowIndex = firstItemRow; itemRowIndex <= lastItemRow; itemRowIndex++) {
     var startLetter = columnToLetter_(firstUserCol)
     var endLetter = columnToLetter_(lastUserCol)
-    var totalLetter = columnToLetter_(totalCol)
 
     sheet
       .getRange(itemRowIndex, totalCol)
@@ -594,9 +618,6 @@ function buildExpenseSheetTemplate_(sheet, userNames, itemNames) {
           itemRowIndex +
           ')',
       )
-    sheet
-      .getRange(itemRowIndex, priceCol)
-      .setFormula('=' + totalLetter + itemRowIndex)
   }
 
   for (var userCol = firstUserCol; userCol <= lastUserCol; userCol++) {
@@ -676,7 +697,7 @@ function buildExpenseSheetTemplate_(sheet, userNames, itemNames) {
 
 function handleCreateSheet_(name, users, items, requesterEmail) {
   try {
-    verifyMasterUser_(requesterEmail)
+    var authUser = verifyMasterUser_(requesterEmail)
 
     var trimmedName = String(name || '').trim()
     var userNames = normalizeStringList_(users)
@@ -742,12 +763,15 @@ function handleCreateSheet_(name, users, items, requesterEmail) {
 
     var sheet = spreadsheet.insertSheet(trimmedName)
     buildExpenseSheetTemplate_(sheet, validatedUsers, itemNames)
+    writeSheetOwnerMeta_(sheet, authUser.email, authUser.name)
 
     return jsonResponse_({
       success: true,
       sheet: {
         id: String(sheet.getSheetId()),
         name: sheet.getName(),
+        ownerEmail: authUser.email,
+        ownerName: authUser.name,
       },
     })
   } catch (error) {
@@ -806,6 +830,101 @@ function buildSharesObject_(users, row, startCol) {
   return shares
 }
 
+function normalizePaymentStatus_(value) {
+  var normalized = String(value || '')
+    .trim()
+    .toUpperCase()
+
+  if (normalized === 'PAID') {
+    return 'Paid'
+  }
+
+  if (normalized === 'PAY REQUESTED') {
+    return 'Pay Requested'
+  }
+
+  return 'Not Paid'
+}
+
+function buildPaymentStatusObject_(users, row, startCol) {
+  var statuses = {}
+
+  for (var i = 0; i < users.length; i++) {
+    statuses[users[i]] = normalizePaymentStatus_(row[startCol + i])
+  }
+
+  return statuses
+}
+
+function findSheetUserForName_(users, masterName) {
+  var normalizedName = String(masterName || '')
+    .trim()
+    .toLowerCase()
+
+  for (var i = 0; i < users.length; i++) {
+    if (String(users[i]).trim().toLowerCase() === normalizedName) {
+      return users[i]
+    }
+  }
+
+  return null
+}
+
+function getPaymentStatusSheetValue_(status) {
+  if (status === 'Paid') {
+    return 'PAID'
+  }
+
+  return status
+}
+
+function applyPaymentStatusFormatting_(sheet, statusRowIndex, users, paymentStatus) {
+  for (var i = 0; i < users.length; i++) {
+    var userName = users[i]
+    var status = normalizePaymentStatus_(paymentStatus[userName])
+    var cell = sheet.getRange(statusRowIndex, 2 + i)
+
+    cell
+      .setValue(getPaymentStatusSheetValue_(status))
+      .setFontWeight(status === 'Not Paid' ? 'normal' : 'bold')
+
+    if (status === 'Paid') {
+      cell.setBackground('#d9ead3')
+    } else if (status === 'Pay Requested') {
+      cell.setBackground('#fff4e5')
+    } else {
+      cell.setBackground('#ffffff')
+    }
+  }
+}
+
+function ensureStatusRow_(sheet, parsed) {
+  if (parsed.meta && parsed.meta.statusRowIndex) {
+    return parsed
+  }
+
+  var pendingRowIndex = parsed.meta.pendingRowIndex
+  var users = parsed.users
+  var lastCol = parsed.meta.commentsCol
+  var statusRowValues = ['status']
+
+  for (var i = 0; i < users.length; i++) {
+    statusRowValues.push('Not Paid')
+  }
+
+  while (statusRowValues.length < lastCol) {
+    statusRowValues.push('')
+  }
+
+  sheet.insertRowAfter(pendingRowIndex)
+  sheet
+    .getRange(pendingRowIndex + 1, 1, 1, statusRowValues.length)
+    .setValues([statusRowValues])
+  sheet.getRange(pendingRowIndex + 1, 1).setFontWeight('bold')
+
+  return parseExpenseSheet_(sheet)
+}
+
 function parseExpenseSheet_(sheet) {
   var values = sheet.getDataRange().getValues()
 
@@ -840,6 +959,7 @@ function parseExpenseSheet_(sheet) {
   var totalRowIndex = findSummaryRowIndex_(values, 'TOTAL')
   var givenRowIndex = findSummaryRowIndex_(values, 'GIVEN')
   var pendingRowIndex = findSummaryRowIndex_(values, 'pending')
+  var statusRowIndex = findSummaryRowIndex_(values, 'status')
 
   if (totalRowIndex < 0 || givenRowIndex < 0 || pendingRowIndex < 0) {
     throw new Error('Summary rows missing from sheet')
@@ -869,6 +989,15 @@ function parseExpenseSheet_(sheet) {
   var totalRow = values[totalRowIndex]
   var givenRow = values[givenRowIndex]
   var pendingRow = values[pendingRowIndex]
+  var paymentStatus = {}
+
+  if (statusRowIndex >= 0) {
+    paymentStatus = buildPaymentStatusObject_(users, values[statusRowIndex], 1)
+  } else {
+    for (var ps = 0; ps < users.length; ps++) {
+      paymentStatus[users[ps]] = 'Not Paid'
+    }
+  }
 
   return {
     id: String(sheet.getSheetId()),
@@ -883,11 +1012,13 @@ function parseExpenseSheet_(sheet) {
       givenTotal: parseNumber_(givenRow[totalCol]) || 0,
       pending: buildSharesObject_(users, pendingRow, 1),
       pendingTotal: parseNumber_(pendingRow[totalCol]) || 0,
+      paymentStatus: paymentStatus,
     },
     meta: {
       totalRowIndex: totalRowIndex + 1,
       givenRowIndex: givenRowIndex + 1,
       pendingRowIndex: pendingRowIndex + 1,
+      statusRowIndex: statusRowIndex >= 0 ? statusRowIndex + 1 : null,
       totalCol: totalCol + 1,
       priceCol: priceCol + 1,
       paidByCol: paidByCol + 1,
@@ -896,7 +1027,125 @@ function parseExpenseSheet_(sheet) {
   }
 }
 
-function loadExpenseSheetById_(sheetId) {
+function isSuperAdminUser_(user) {
+  return (
+    String(user.type || '')
+      .trim()
+      .toUpperCase() === SUPER_ADMIN_TYPE
+  )
+}
+
+function findMetaRowIndex_(values, label) {
+  var normalizedLabel = String(label).trim().toLowerCase()
+
+  for (var i = values.length - 1; i >= 0; i--) {
+    if (
+      String(values[i][0] || '')
+        .trim()
+        .toLowerCase() === normalizedLabel
+    ) {
+      return i
+    }
+  }
+
+  return -1
+}
+
+function getSheetOwnerInfo_(sheet) {
+  var values = sheet.getDataRange().getValues()
+  var emailIndex = findMetaRowIndex_(values, 'owner_email')
+  var nameIndex = findMetaRowIndex_(values, 'owner_name')
+
+  return {
+    ownerEmail:
+      emailIndex >= 0 ? String(values[emailIndex][1] || '').trim() : '',
+    ownerName: nameIndex >= 0 ? String(values[nameIndex][1] || '').trim() : '',
+  }
+}
+
+function removeSheetOwnerMeta_(sheet) {
+  var values = sheet.getDataRange().getValues()
+  var rowsToDelete = []
+
+  for (var i = values.length - 1; i >= 0; i--) {
+    var label = String(values[i][0] || '')
+      .trim()
+      .toLowerCase()
+
+    if (label === 'owner_email' || label === 'owner_name') {
+      rowsToDelete.push(i + 1)
+    }
+  }
+
+  rowsToDelete.sort(function (left, right) {
+    return right - left
+  })
+
+  for (var d = 0; d < rowsToDelete.length; d++) {
+    sheet.deleteRow(rowsToDelete[d])
+  }
+}
+
+function writeSheetOwnerMeta_(sheet, email, name) {
+  removeSheetOwnerMeta_(sheet)
+
+  var lastRow = sheet.getLastRow()
+  var startRow = lastRow + 1
+
+  sheet.getRange(startRow, 1, 2, 2).setValues([
+    ['owner_email', email],
+    ['owner_name', name],
+  ])
+
+  try {
+    sheet.hideRows(startRow, 2)
+  } catch (error) {
+    // Ignore hide failures on older sheets.
+  }
+}
+
+function getExpenseSheetAccess_(requesterEmail, sheet) {
+  var authUser = verifyMasterUser_(requesterEmail)
+  var owner = getSheetOwnerInfo_(sheet)
+  var isOwner =
+    owner.ownerEmail &&
+    normalizeEmail_(owner.ownerEmail) === normalizeEmail_(authUser.email)
+  var isAdmin = isSuperAdminUser_(authUser)
+
+  return {
+    user: authUser,
+    ownerEmail: owner.ownerEmail,
+    ownerName: owner.ownerName,
+    canEdit: isAdmin || isOwner,
+    canManagePayments: isAdmin || isOwner,
+  }
+}
+
+function enrichExpenseSheetResponse_(sheet, requesterEmail) {
+  var parsed = parseExpenseSheet_(sheet)
+  delete parsed.meta
+
+  var owner = getSheetOwnerInfo_(sheet)
+  var access = requesterEmail
+    ? getExpenseSheetAccess_(requesterEmail, sheet)
+    : {
+        ownerEmail: owner.ownerEmail,
+        ownerName: owner.ownerName,
+        canEdit: false,
+        canManagePayments: false,
+      }
+
+  parsed.ownerEmail = owner.ownerEmail
+  parsed.ownerName = owner.ownerName
+  parsed.permissions = {
+    canEdit: access.canEdit,
+    canManagePayments: access.canManagePayments,
+  }
+
+  return parsed
+}
+
+function loadExpenseSheetById_(sheetId, requesterEmail) {
   if (!sheetId) {
     throw new Error('Sheet id is required')
   }
@@ -907,19 +1156,14 @@ function loadExpenseSheetById_(sheetId) {
     throw new Error('Cannot open reserved sheet')
   }
 
-  var parsed = parseExpenseSheet_(sheet)
-  delete parsed.meta
-
-  return parsed
+  return enrichExpenseSheetResponse_(sheet, requesterEmail)
 }
 
 function handleGetExpenseSheet_(sheetId, requesterEmail) {
   try {
-    verifyMasterUser_(requesterEmail)
-
     return jsonResponse_({
       success: true,
-      sheet: loadExpenseSheetById_(sheetId),
+      sheet: loadExpenseSheetById_(sheetId, requesterEmail),
     })
   } catch (error) {
     return jsonResponse_({
@@ -931,9 +1175,15 @@ function handleGetExpenseSheet_(sheetId, requesterEmail) {
 
 function handleGetSharedExpenseSheet_(sheetId) {
   try {
+    var sheet = getSheetById_(sheetId)
+
+    if (isReservedSheetName_(sheet.getName())) {
+      throw new Error('Cannot open reserved sheet')
+    }
+
     return jsonResponse_({
       success: true,
-      sheet: loadExpenseSheetById_(sheetId),
+      sheet: enrichExpenseSheetResponse_(sheet, null),
     })
   } catch (error) {
     return jsonResponse_({
@@ -971,6 +1221,9 @@ function validateExpenseSheetUsers_(users) {
 }
 
 function applyExpenseSheetPayload_(sheet, payload) {
+  var existingOwner = getSheetOwnerInfo_(sheet)
+  var existingParsed = parseExpenseSheet_(sheet)
+  var existingPaymentStatus = existingParsed.summary.paymentStatus || {}
   var validatedUsers = validateExpenseSheetUsers_(payload && payload.users)
   var given = (payload && payload.given) || {}
   var rawItems = (payload && payload.items) || []
@@ -1013,6 +1266,9 @@ function applyExpenseSheetPayload_(sheet, payload) {
     }
 
     sheet
+      .getRange(rowIndex, parsed.meta.priceCol)
+      .setValue(parseNumber_(itemPayload && itemPayload.price) || 0)
+    sheet
       .getRange(rowIndex, parsed.meta.paidByCol)
       .setValue(String((itemPayload && itemPayload.paidBy) || '').trim())
     sheet
@@ -1031,13 +1287,172 @@ function applyExpenseSheetPayload_(sheet, payload) {
     sheet.getRange(parsed.meta.givenRowIndex, 2 + givenIndex).setValue(givenValue)
   }
 
+  var paymentStatus =
+    (payload && payload.paymentStatus) || existingPaymentStatus || {}
+  parsed = ensureStatusRow_(sheet, parsed)
+
+  applyPaymentStatusFormatting_(
+    sheet,
+    parsed.meta.statusRowIndex,
+    validatedUsers,
+    paymentStatus,
+  )
+
+  if (existingOwner.ownerEmail) {
+    writeSheetOwnerMeta_(
+      sheet,
+      existingOwner.ownerEmail,
+      existingOwner.ownerName,
+    )
+  }
+
   SpreadsheetApp.flush()
+}
+
+function handleRequestPaymentStatus_(sheetId, requesterEmail) {
+  try {
+    var authUser = verifyMasterUser_(requesterEmail)
+    var sheet = getSheetById_(sheetId)
+    var parsed = parseExpenseSheet_(sheet)
+
+    parsed = ensureStatusRow_(sheet, parsed)
+
+    var sheetUser = findSheetUserForName_(parsed.users, authUser.name)
+
+    if (!sheetUser) {
+      return jsonResponse_({
+        success: false,
+        message: 'You are not listed on this expense sheet',
+      })
+    }
+
+    var pending = parsed.summary.pending[sheetUser] || 0
+
+    if (pending <= 0) {
+      return jsonResponse_({
+        success: false,
+        message: 'No outstanding balance to request payment for',
+      })
+    }
+
+    var currentStatus = normalizePaymentStatus_(
+      parsed.summary.paymentStatus[sheetUser],
+    )
+
+    if (currentStatus !== 'Not Paid') {
+      return jsonResponse_({
+        success: false,
+        message: 'Payment already requested or marked paid',
+      })
+    }
+
+    var userIndex = parsed.users.indexOf(sheetUser)
+    var nextStatus = 'Pay Requested'
+    var nextStatuses = {}
+
+    for (var i = 0; i < parsed.users.length; i++) {
+      nextStatuses[parsed.users[i]] = normalizePaymentStatus_(
+        parsed.summary.paymentStatus[parsed.users[i]],
+      )
+    }
+
+    nextStatuses[sheetUser] = nextStatus
+
+    sheet
+      .getRange(parsed.meta.statusRowIndex, 2 + userIndex)
+      .setValue(getPaymentStatusSheetValue_(nextStatus))
+      .setFontWeight('bold')
+      .setBackground('#fff4e5')
+
+    return jsonResponse_({
+      success: true,
+      sheet: loadExpenseSheetById_(sheetId, requesterEmail),
+    })
+  } catch (error) {
+    return jsonResponse_({
+      success: false,
+      message: error.message || 'Failed to request payment',
+    })
+  }
+}
+
+function handleConfirmPaymentStatus_(sheetId, requesterEmail, targetUser) {
+  try {
+    var sheet = getSheetById_(sheetId)
+    var access = getExpenseSheetAccess_(requesterEmail, sheet)
+
+    if (!access.canManagePayments) {
+      return jsonResponse_({
+        success: false,
+        message: 'Only the sheet owner or SUPER ADMIN can approve payments',
+      })
+    }
+
+    var trimmedTarget = String(targetUser || '').trim()
+
+    if (!trimmedTarget) {
+      return jsonResponse_({
+        success: false,
+        message: 'Target user is required',
+      })
+    }
+
+    var parsed = parseExpenseSheet_(sheet)
+
+    parsed = ensureStatusRow_(sheet, parsed)
+
+    var matchedUser = findSheetUserForName_(parsed.users, trimmedTarget)
+
+    if (!matchedUser) {
+      return jsonResponse_({
+        success: false,
+        message: 'User not found on this expense sheet',
+      })
+    }
+
+    var currentStatus = normalizePaymentStatus_(
+      parsed.summary.paymentStatus[matchedUser],
+    )
+
+    if (currentStatus !== 'Pay Requested') {
+      return jsonResponse_({
+        success: false,
+        message: 'No payment request pending for this user',
+      })
+    }
+
+    var userIndex = parsed.users.indexOf(matchedUser)
+    var nextStatuses = {}
+
+    for (var i = 0; i < parsed.users.length; i++) {
+      nextStatuses[parsed.users[i]] = normalizePaymentStatus_(
+        parsed.summary.paymentStatus[parsed.users[i]],
+      )
+    }
+
+    nextStatuses[matchedUser] = 'Paid'
+
+    applyPaymentStatusFormatting_(
+      sheet,
+      parsed.meta.statusRowIndex,
+      parsed.users,
+      nextStatuses,
+    )
+
+    return jsonResponse_({
+      success: true,
+      sheet: loadExpenseSheetById_(sheetId, requesterEmail),
+    })
+  } catch (error) {
+    return jsonResponse_({
+      success: false,
+      message: error.message || 'Failed to confirm payment',
+    })
+  }
 }
 
 function handleUpdateExpenseSheet_(sheetId, requesterEmail, payload) {
   try {
-    verifyMasterUser_(requesterEmail)
-
     if (!sheetId) {
       return jsonResponse_({
         success: false,
@@ -1054,14 +1469,20 @@ function handleUpdateExpenseSheet_(sheetId, requesterEmail, payload) {
       })
     }
 
-    applyExpenseSheetPayload_(sheet, payload)
+    var access = getExpenseSheetAccess_(requesterEmail, sheet)
 
-    var updated = parseExpenseSheet_(sheet)
-    delete updated.meta
+    if (!access.canEdit) {
+      return jsonResponse_({
+        success: false,
+        message: 'Only the sheet owner or SUPER ADMIN can edit this sheet',
+      })
+    }
+
+    applyExpenseSheetPayload_(sheet, payload)
 
     return jsonResponse_({
       success: true,
-      sheet: updated,
+      sheet: loadExpenseSheetById_(sheetId, requesterEmail),
     })
   } catch (error) {
     return jsonResponse_({
@@ -1070,8 +1491,6 @@ function handleUpdateExpenseSheet_(sheetId, requesterEmail, payload) {
     })
   }
 }
-
-const SUPER_ADMIN_TYPE = 'SUPER ADMIN'
 
 function verifySuperAdmin_(email) {
   if (!email) {

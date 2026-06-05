@@ -1,6 +1,8 @@
 export type SheetItem = {
   id: string
   name: string
+  ownerEmail: string
+  ownerName: string
 }
 
 export type PaginationMeta = {

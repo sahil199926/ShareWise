@@ -6,9 +6,10 @@ import type { SheetItem } from '../../types/sheet'
 
 type SheetCardProps = {
   sheet: SheetItem
+  canEdit?: boolean
 }
 
-const SheetCard = ({ sheet }: SheetCardProps) => {
+const SheetCard = ({ sheet, canEdit = false }: SheetCardProps) => {
   const canHover = useCanHover()
   const [isExpanded, setIsExpanded] = useState(false)
   const cardRef = useRef<HTMLElement>(null)
@@ -52,6 +53,9 @@ const SheetCard = ({ sheet }: SheetCardProps) => {
               {sheet.name}
             </h3>
             <p className="mt-1 truncate text-xs text-low">ID: {sheet.id}</p>
+            <p className="mt-1 truncate text-xs text-medium">
+              Owner: {sheet.ownerName || 'Unknown'}
+            </p>
           </div>
           <span className="badge-accent shrink-0">Sheet</span>
         </div>
@@ -65,7 +69,7 @@ const SheetCard = ({ sheet }: SheetCardProps) => {
             event.stopPropagation()
             handleActionClick()
           }}
-          className="sheet-card-half sheet-card-share"
+          className={`sheet-card-half sheet-card-share ${canEdit ? '' : 'sheet-card-half-full'}`}
         >
           <svg
             className="h-5 w-5"
@@ -79,25 +83,27 @@ const SheetCard = ({ sheet }: SheetCardProps) => {
           <span className="text-sm font-semibold">Share link</span>
         </Link>
 
-        <Link
-          to={getEditSheetPath(sheet.id)}
-          state={{ sheet }}
-          onClick={(event) => {
-            event.stopPropagation()
-            handleActionClick()
-          }}
-          className="sheet-card-half sheet-card-edit"
-        >
-          <svg
-            className="h-5 w-5"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            aria-hidden="true"
+        {canEdit ? (
+          <Link
+            to={getEditSheetPath(sheet.id)}
+            state={{ sheet }}
+            onClick={(event) => {
+              event.stopPropagation()
+              handleActionClick()
+            }}
+            className="sheet-card-half sheet-card-edit"
           >
-            <path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" />
-          </svg>
-          <span className="text-sm font-semibold">Edit</span>
-        </Link>
+            <svg
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M2.695 14.763l-1.262 3.154a.5.5 0 00.65.65l3.155-1.262a4 4 0 001.343-.885L17.5 5.5a2.121 2.121 0 00-3-3L3.58 13.42a4 4 0 00-.885 1.343z" />
+            </svg>
+            <span className="text-sm font-semibold">Edit</span>
+          </Link>
+        ) : null}
       </div>
     </article>
   )

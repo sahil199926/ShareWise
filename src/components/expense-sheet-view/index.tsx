@@ -7,7 +7,19 @@ import type {
   ExpenseSheetSummary,
   ExpenseSheetUpdateInput,
 } from '../../types/expense-sheet'
-import { formatAmount, getPendingTone } from '../../lib/expense-sheet-utils'
+import { PAYMENT_STATUS } from '../../constants/payment-status'
+import {
+  createDefaultPaymentStatus,
+  formatAmount,
+  formatPaidBy,
+  getPendingTone,
+  normalizePaidBy,
+  normalizePaymentStatusMap,
+  syncDraftGiven,
+} from '../../lib/expense-sheet-utils'
+import ExpenseCommentTextarea from '../expense-comment-textarea'
+import PaidByMultiSelect from '../paid-by-multi-select'
+import PaymentStatusBadge from '../payment-status-badge'
 
 const REMOVE_ANIMATION_MS = 320
 
@@ -24,6 +36,11 @@ type ExpenseSheetViewProps = {
   onRemoveItem?: (clientId: string) => void
   onAddUser?: (userName: string) => void
   onAddItem?: (name: string) => void
+  currentSheetUser?: string | null
+  canManagePayments?: boolean
+  onRequestPayment?: () => void
+  onConfirmPayment?: (userName: string) => void
+  paymentActionLoading?: boolean
 }
 
 const pendingToneClass: Record<string, string> = {
@@ -45,11 +62,21 @@ const ExpenseSheetView = ({
   onRemoveItem,
   onAddUser,
   onAddItem,
+  currentSheetUser = null,
+  canManagePayments = false,
+  onRequestPayment,
+  onConfirmPayment,
+  paymentActionLoading = false,
 }: ExpenseSheetViewProps) => {
   const [newItemName, setNewItemName] = useState('')
   const isEdit = mode === 'edit' && draft && onDraftChange
 
   const users = isEdit ? draft.users : data.users
+  const paymentStatus = normalizePaymentStatusMap(
+    users,
+    summary.paymentStatus ?? createDefaultPaymentStatus(users),
+  )
+  const summaryWithStatus = { ...summary, paymentStatus }
   const items: ExpenseSheetDraftItem[] = isEdit
     ? draft.items
     : data.items.map((item) => ({
@@ -57,7 +84,8 @@ const ExpenseSheetView = ({
         rowIndex: item.rowIndex,
         name: item.name,
         shares: item.shares,
-        paidBy: item.paidBy,
+        price: item.price,
+        paidBy: normalizePaidBy(item.paidBy, data.users),
         comments: item.comments,
       }))
 
@@ -88,7 +116,7 @@ const ExpenseSheetView = ({
 
   const updateItemField = (
     clientId: string,
-    field: 'name' | 'paidBy' | 'comments',
+    field: 'name' | 'comments',
     value: string,
   ) => {
     if (!draft || !onDraftChange) return
@@ -101,18 +129,37 @@ const ExpenseSheetView = ({
     })
   }
 
-  const updateGiven = (userName: string, value: string) => {
+  const updatePrice = (clientId: string, value: string) => {
     if (!draft || !onDraftChange) return
 
-    const nextValue = value === '' ? 0 : Number(value)
+    const nextPrice = value === '' ? 0 : Number(value)
 
-    onDraftChange({
-      ...draft,
-      given: {
-        ...draft.given,
-        [userName]: Number.isNaN(nextValue) ? 0 : nextValue,
-      },
-    })
+    onDraftChange(
+      syncDraftGiven({
+        ...draft,
+        items: draft.items.map((item) =>
+          item.clientId === clientId
+            ? {
+                ...item,
+                price: Number.isNaN(nextPrice) ? 0 : nextPrice,
+              }
+            : item,
+        ),
+      }),
+    )
+  }
+
+  const updatePaidBy = (clientId: string, payers: string[]) => {
+    if (!draft || !onDraftChange) return
+
+    onDraftChange(
+      syncDraftGiven({
+        ...draft,
+        items: draft.items.map((item) =>
+          item.clientId === clientId ? { ...item, paidBy: payers } : item,
+        ),
+      }),
+    )
   }
 
   const getItemRowTotal = (item: ExpenseSheetDraftItem) => {
@@ -172,7 +219,7 @@ const ExpenseSheetView = ({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {users.map((user) => {
-            const pending = summary.pending[user] || 0
+            const pending = summaryWithStatus.pending[user] || 0
             const tone = getPendingTone(pending)
             const isRemoving = removingUsers.has(user)
 
@@ -223,6 +270,10 @@ const ExpenseSheetView = ({
                     </p>
                   </div>
                 </div>
+
+                <div className="mt-4">
+                  <PaymentStatusBadge status={paymentStatus[user]} />
+                </div>
               </article>
             )
           })}
@@ -249,7 +300,7 @@ const ExpenseSheetView = ({
           </div>
         ) : null}
 
-        <div className="overflow-x-auto">
+        <div className="expense-table-scroll">
           <table className="expense-table min-w-full">
             <thead>
               <tr className="expense-row-header">
@@ -315,48 +366,52 @@ const ExpenseSheetView = ({
                       </td>
                     ))}
                     <td className="font-medium">{formatAmount(rowTotal)}</td>
-                    <td className="font-medium">{formatAmount(rowTotal)}</td>
-                    <td>
-                      {isEdit ? (
-                        <select
-                          value={item.paidBy}
-                          onChange={(event) =>
-                            updateItemField(
-                              item.clientId,
-                              'paidBy',
-                              event.target.value,
-                            )
-                          }
-                          className="expense-cell-input"
-                        >
-                          <option value="">—</option>
-                          {users.map((user) => (
-                            <option key={user} value={user}>
-                              {user}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        item.paidBy || '—'
-                      )}
-                    </td>
                     <td>
                       {isEdit ? (
                         <input
-                          type="text"
-                          value={item.comments}
+                          type="number"
+                          value={item.price ?? 0}
                           onChange={(event) =>
+                            updatePrice(item.clientId, event.target.value)
+                          }
+                          className="expense-cell-input"
+                        />
+                      ) : (
+                        formatAmount(item.price ?? 0)
+                      )}
+                    </td>
+                    <td className="expense-table-cell-interactive">
+                      {isEdit ? (
+                        <PaidByMultiSelect
+                          users={users}
+                          value={item.paidBy}
+                          onChange={(payers) =>
+                            updatePaidBy(item.clientId, payers)
+                          }
+                        />
+                      ) : item.paidBy.length ? (
+                        formatPaidBy(item.paidBy)
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="expense-table-cell-interactive min-w-44">
+                      {isEdit ? (
+                        <ExpenseCommentTextarea
+                          value={item.comments}
+                          onChange={(nextValue) =>
                             updateItemField(
                               item.clientId,
                               'comments',
-                              event.target.value,
+                              nextValue,
                             )
                           }
-                          className="expense-cell-input"
                           placeholder="Add note"
                         />
                       ) : (
-                        item.comments || '—'
+                        <span className="block whitespace-pre-wrap text-left text-sm text-medium">
+                          {item.comments || '—'}
+                        </span>
                       )}
                     </td>
                     {isEdit ? (
@@ -397,19 +452,8 @@ const ExpenseSheetView = ({
               <tr className="expense-row-given">
                 <td className="font-bold">GIVEN</td>
                 {users.map((user) => (
-                  <td key={user}>
-                    {isEdit ? (
-                      <input
-                        type="number"
-                        value={draft?.given[user] ?? 0}
-                        onChange={(event) =>
-                          updateGiven(user, event.target.value)
-                        }
-                        className="expense-cell-input"
-                      />
-                    ) : (
-                      formatAmount(summary.given[user] || 0)
-                    )}
+                  <td key={user} className="font-medium">
+                    {formatAmount(summary.given[user] || 0)}
                   </td>
                 ))}
                 <td className="font-bold">
@@ -421,7 +465,7 @@ const ExpenseSheetView = ({
               <tr className="expense-row-pending">
                 <td className="font-bold">pending</td>
                 {users.map((user) => {
-                  const pending = summary.pending[user] || 0
+                  const pending = summaryWithStatus.pending[user] || 0
                   const tone = getPendingTone(pending)
 
                   return (
@@ -440,6 +484,56 @@ const ExpenseSheetView = ({
                   {formatAmount(summary.pendingTotal)}
                 </td>
                 <td colSpan={isEdit ? 3 : 2} />
+              </tr>
+
+              <tr className="expense-row-status">
+                <td className="font-bold">status</td>
+                {users.map((user) => {
+                  const status = paymentStatus[user]
+                  const pending = summaryWithStatus.pending[user] || 0
+                  const canRequest =
+                    currentSheetUser === user &&
+                    pending > 0 &&
+                    status === PAYMENT_STATUS.NOT_PAID &&
+                    Boolean(onRequestPayment)
+                  const canConfirm =
+                    canManagePayments &&
+                    status === PAYMENT_STATUS.PAY_REQUESTED &&
+                    Boolean(onConfirmPayment)
+
+                  return (
+                    <td key={user} className="align-top whitespace-normal">
+                      <div className="flex flex-col items-center gap-2 py-1">
+                        <PaymentStatusBadge status={status} />
+                        {canRequest ? (
+                          <button
+                            type="button"
+                            onClick={onRequestPayment}
+                            disabled={paymentActionLoading}
+                            className="payment-action-btn"
+                          >
+                            {paymentActionLoading
+                              ? 'Sending...'
+                              : 'Request paid'}
+                          </button>
+                        ) : null}
+                        {canConfirm ? (
+                          <button
+                            type="button"
+                            onClick={() => onConfirmPayment?.(user)}
+                            disabled={paymentActionLoading}
+                            className="payment-action-btn payment-action-btn-confirm"
+                          >
+                            {paymentActionLoading
+                              ? 'Saving...'
+                              : 'Mark paid'}
+                          </button>
+                        ) : null}
+                      </div>
+                    </td>
+                  )
+                })}
+                <td colSpan={isEdit ? 4 : 3} />
               </tr>
             </tbody>
           </table>
