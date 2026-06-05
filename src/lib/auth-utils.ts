@@ -11,3 +11,10 @@ export const isSuperAdmin = (user: User | null | undefined) => {
 export const isSameUserEmail = (left: string, right: string) => {
   return left.trim().toLowerCase() === right.trim().toLowerCase()
 }
+
+export const isValidUser = (value: unknown): value is User => {
+  if (!value || typeof value !== 'object') return false
+
+  const user = value as Partial<User>
+  return Boolean(user.email?.trim() && user.name?.trim())
+}

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/use-auth'
 import { loginWithSheet } from '../../services/auth.service'
+import LazyFallback from '../lazy-fallback'
 import Logo from '../logo'
 
 const Login = () => {
@@ -9,7 +10,7 @@ const Login = () => {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { login, isAuthenticated } = useAuth()
+  const { login, isAuthenticated, isBootstrapping } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -31,6 +32,10 @@ const Login = () => {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (isBootstrapping) {
+    return <LazyFallback />
   }
 
   if (isAuthenticated) {

@@ -1,4 +1,4 @@
-import { callSheetApi } from '../lib/sheets-api'
+import { callSheetApi, formatSheetApiError } from '../lib/sheets-api'
 import type {
   ExpenseSheetData,
   ExpenseSheetSavePayload,
@@ -14,20 +14,29 @@ export const getExpenseSheet = async (
   )
 
   if (!response.success || !response.sheet) {
-    throw new Error(response.message ?? 'Failed to load sheet')
+    throw new Error(formatSheetApiError(response.message, 'getExpenseSheet'))
   }
 
   return response.sheet
 }
 
-export const getSharedExpenseSheet = async (sheetId: string) => {
+export const getSharedExpenseSheet = async (
+  sheetId: string,
+  requesterEmail?: string,
+) => {
   const response = await callSheetApi<{ sheet: ExpenseSheetData }>(
     'getSharedExpenseSheet',
     { sheetId },
   )
 
   if (!response.success || !response.sheet) {
-    throw new Error(response.message ?? 'Failed to load sheet')
+    if (response.message === 'Unknown action' && requesterEmail) {
+      return getExpenseSheet(sheetId, requesterEmail)
+    }
+
+    throw new Error(
+      formatSheetApiError(response.message, 'getSharedExpenseSheet'),
+    )
   }
 
   return response.sheet
@@ -44,7 +53,7 @@ export const updateExpenseSheet = async (
   )
 
   if (!response.success || !response.sheet) {
-    throw new Error(response.message ?? 'Failed to save sheet')
+    throw new Error(formatSheetApiError(response.message, 'updateExpenseSheet'))
   }
 
   return response.sheet

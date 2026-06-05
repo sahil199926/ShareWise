@@ -1,13 +1,22 @@
+import { isValidUser } from './auth-utils'
 import type { User } from '../types/auth'
 
-const AUTH_STORAGE_KEY = 'expense_tracker_auth'
+export const AUTH_STORAGE_KEY = 'expense_tracker_auth'
 
 export const getStoredAuth = (): User | null => {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY)
     if (!raw) return null
-    return JSON.parse(raw) as User
+
+    const parsed: unknown = JSON.parse(raw)
+    if (!isValidUser(parsed)) {
+      localStorage.removeItem(AUTH_STORAGE_KEY)
+      return null
+    }
+
+    return parsed
   } catch {
+    localStorage.removeItem(AUTH_STORAGE_KEY)
     return null
   }
 }

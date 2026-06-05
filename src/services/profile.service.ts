@@ -1,4 +1,4 @@
-import { callSheetApi } from '../lib/sheets-api'
+import { callSheetApi, formatSheetApiError } from '../lib/sheets-api'
 import type { User } from '../types/auth'
 import type { ProfileUpdateInput } from '../types/profile'
 
@@ -10,7 +10,7 @@ export const getProfile = async (email: string) => {
   const response = await callSheetApi<ProfileResult>('getProfile', { email })
 
   if (!response.success || !response.user) {
-    throw new Error(response.message ?? 'Failed to load profile')
+    throw new Error(formatSheetApiError(response.message, 'getProfile'))
   }
 
   return response.user
@@ -26,7 +26,7 @@ export const updateProfile = async (
   })
 
   if (!response.success || !response.user) {
-    throw new Error(response.message ?? 'Failed to update profile')
+    throw new Error(formatSheetApiError(response.message, 'updateProfile'))
   }
 
   return response.user

@@ -11,8 +11,11 @@ type ShareSheetContentProps = {
 }
 
 const ShareSheetContent = ({ sheetId }: ShareSheetContentProps) => {
-  const { isAuthenticated } = useAuth()
-  const { data: sheetData, error, isLoading } = useSharedExpenseSheet(sheetId)
+  const { user, isAuthenticated } = useAuth()
+  const { data: sheetData, error, isLoading } = useSharedExpenseSheet(
+    sheetId,
+    user?.email,
+  )
   const [copied, setCopied] = useState(false)
 
   const shareUrl = getShareSheetUrl(sheetId)
