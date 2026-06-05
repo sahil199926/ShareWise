@@ -17,10 +17,11 @@ const ShareSheetContent = ({
 }: ShareSheetContentProps) => {
   const navigate = useNavigate()
   const { logout } = useAuth()
-  const { data: sheetData, error, isLoading } = useExpenseSheet(
-    sheetId,
-    requesterEmail,
-  )
+  const {
+    data: sheetData,
+    error,
+    isLoading,
+  } = useExpenseSheet(sheetId, requesterEmail)
   const [copied, setCopied] = useState(false)
 
   const shareUrl = getShareSheetUrl(sheetId)
@@ -114,13 +115,7 @@ const ShareSheet = () => {
     return null
   }
 
-  return (
-    <ShareSheetContent
-      key={id}
-      sheetId={id}
-      requesterEmail={user.email}
-    />
-  )
+  return <ShareSheetContent key={id} sheetId={id} requesterEmail={user.email} />
 }
 
 export default ShareSheet

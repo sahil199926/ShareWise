@@ -3,49 +3,43 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import AppHeader from '../app-header'
 import ExpenseSheetView from '../expense-sheet-view'
 import { useAuth } from '../../hooks/use-auth'
+import { useExpenseSheet } from '../../hooks/use-expense-sheet'
 import {
   computeLiveSummary,
   getDraftItemsForSummary,
   toExpenseSheetDraft,
 } from '../../lib/expense-sheet-utils'
 import { getShareSheetPath } from '../../lib/sheet-urls'
-import {
-  getExpenseSheet,
-  updateExpenseSheet,
-} from '../../services/expense-sheet.service'
-import type { ExpenseSheetData } from '../../types/expense-sheet'
+import { updateExpenseSheet } from '../../services/expense-sheet.service'
 import type { ExpenseSheetUpdateInput } from '../../types/expense-sheet'
 
-const EditSheet = () => {
-  const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const { user, logout } = useAuth()
+type EditSheetContentProps = {
+  sheetId: string
+  requesterEmail: string
+}
 
-  const [sheetData, setSheetData] = useState<ExpenseSheetData | null>(null)
+const EditSheetContent = ({
+  sheetId,
+  requesterEmail,
+}: EditSheetContentProps) => {
+  const navigate = useNavigate()
+  const { logout } = useAuth()
+  const {
+    data: sheetData,
+    error,
+    isLoading,
+  } = useExpenseSheet(sheetId, requesterEmail)
+
   const [draft, setDraft] = useState<ExpenseSheetUpdateInput | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [saveError, setSaveError] = useState('')
   const [success, setSuccess] = useState('')
 
   useEffect(() => {
-    if (!id || !user?.email) return
-
-    setIsLoading(true)
-
-    getExpenseSheet(id, user.email)
-      .then((sheet) => {
-        setSheetData(sheet)
-        setDraft(toExpenseSheetDraft(sheet))
-        setError('')
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Failed to load sheet')
-      })
-      .finally(() => {
-        setIsLoading(false)
-      })
-  }, [id, user?.email])
+    if (sheetData) {
+      setDraft(toExpenseSheetDraft(sheetData))
+    }
+  }, [sheetData])
 
   const liveSummary = useMemo(() => {
     if (!sheetData || !draft) return null
@@ -58,19 +52,18 @@ const EditSheet = () => {
   }, [sheetData, draft])
 
   const handleSave = async () => {
-    if (!id || !user?.email || !draft) return
+    if (!draft) return
 
     setIsSaving(true)
-    setError('')
+    setSaveError('')
     setSuccess('')
 
     try {
-      const updated = await updateExpenseSheet(id, user.email, draft)
-      setSheetData(updated)
+      const updated = await updateExpenseSheet(sheetId, requesterEmail, draft)
       setDraft(toExpenseSheetDraft(updated))
       setSuccess('Changes saved to Google Sheets.')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save sheet')
+      setSaveError(err instanceof Error ? err.message : 'Failed to save sheet')
     } finally {
       setIsSaving(false)
     }
@@ -104,18 +97,17 @@ const EditSheet = () => {
             ← Back to dashboard
           </Link>
 
-          {id ? (
-            <Link
-              to={getShareSheetPath(id)}
-              state={{ sheet: { id, name: sheetData?.name ?? '' } }}
-              className="btn-secondary"
-            >
-              Share view
-            </Link>
-          ) : null}
+          <Link
+            to={getShareSheetPath(sheetId)}
+            state={{ sheet: { id: sheetId, name: sheetData?.name ?? '' } }}
+            className="btn-secondary"
+          >
+            Share view
+          </Link>
         </div>
 
         {error ? <div className="alert-error mt-6">{error}</div> : null}
+        {saveError ? <div className="alert-error mt-6">{saveError}</div> : null}
         {success ? <div className="alert-success mt-6">{success}</div> : null}
 
         {isLoading ? (
@@ -148,6 +140,17 @@ const EditSheet = () => {
       </main>
     </div>
   )
+}
+
+const EditSheet = () => {
+  const { id } = useParams<{ id: string }>()
+  const { user } = useAuth()
+
+  if (!id || !user?.email) {
+    return null
+  }
+
+  return <EditSheetContent key={id} sheetId={id} requesterEmail={user.email} />
 }
 
 export default EditSheet

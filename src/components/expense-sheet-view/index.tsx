@@ -3,10 +3,7 @@ import type {
   ExpenseSheetSummary,
   ExpenseSheetUpdateInput,
 } from '../../types/expense-sheet'
-import {
-  formatAmount,
-  getPendingTone,
-} from '../../lib/expense-sheet-utils'
+import { formatAmount, getPendingTone } from '../../lib/expense-sheet-utils'
 
 type ExpenseSheetViewProps = {
   data: ExpenseSheetData
@@ -31,11 +28,7 @@ const ExpenseSheetView = ({
 }: ExpenseSheetViewProps) => {
   const isEdit = mode === 'edit' && draft && onDraftChange
 
-  const updateShare = (
-    rowIndex: number,
-    userName: string,
-    value: string,
-  ) => {
+  const updateShare = (rowIndex: number, userName: string, value: string) => {
     if (!draft || !onDraftChange) return
 
     const nextValue = value === '' ? 0 : Number(value)

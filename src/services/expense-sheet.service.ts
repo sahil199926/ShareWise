@@ -4,7 +4,10 @@ import type {
   ExpenseSheetUpdateInput,
 } from '../types/expense-sheet'
 
-export const getExpenseSheet = async (sheetId: string, requesterEmail: string) => {
+export const getExpenseSheet = async (
+  sheetId: string,
+  requesterEmail: string,
+) => {
   const response = await callSheetApi<{ sheet: ExpenseSheetData }>(
     'getExpenseSheet',
     { sheetId, requesterEmail },
