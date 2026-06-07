@@ -1,6 +1,6 @@
 export const PAYMENT_STATUS = {
   NOT_PAID: 'Not Paid',
-  PAY_REQUESTED: 'Pay Requested',
+  PAY_REQUESTED: 'Requested paid',
   PAID: 'Paid',
 } as const
 
@@ -9,6 +9,6 @@ export type PaymentStatus =
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   [PAYMENT_STATUS.NOT_PAID]: 'Not Paid',
-  [PAYMENT_STATUS.PAY_REQUESTED]: 'Pay Requested',
+  [PAYMENT_STATUS.PAY_REQUESTED]: 'Requested paid',
   [PAYMENT_STATUS.PAID]: 'Paid',
 }

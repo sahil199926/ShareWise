@@ -6,8 +6,12 @@ import { useAuth } from '../../hooks/use-auth'
 import { useShareMeta } from '../../hooks/use-share-meta'
 import { useSharedExpenseSheet } from '../../hooks/use-shared-expense-sheet'
 import { findSheetUserName } from '../../lib/sheet-user-utils'
+import { buildShareCopyMessage } from '../../../lib/share-meta'
 import { getEditSheetPath, getShareSheetUrl } from '../../lib/sheet-urls'
-import { requestPaymentStatus } from '../../services/expense-sheet.service'
+import {
+  confirmPaymentStatus,
+  requestPaymentStatus,
+} from '../../services/expense-sheet.service'
 import { applyThemeToDocument, getStoredTheme } from '../../lib/theme-storage'
 
 const useSharePageLightTheme = () => {
@@ -45,6 +49,8 @@ const ShareSheetContent = ({ sheetId }: ShareSheetContentProps) => {
       ? findSheetUserName(sheetData.users, user.name)
       : null
 
+  const canManagePayments = sheetData?.permissions?.canManagePayments ?? false
+
   const handleRequestPayment = async () => {
     if (!user?.email) return
 
@@ -55,7 +61,7 @@ const ShareSheetContent = ({ sheetId }: ShareSheetContentProps) => {
     try {
       const updated = await requestPaymentStatus(sheetId, user.email)
       setData(updated)
-      setPaymentSuccess('Payment request sent to admin.')
+      setPaymentSuccess('Status updated to requested paid.')
     } catch (err) {
       setPaymentError(
         err instanceof Error ? err.message : 'Failed to request payment',
@@ -65,11 +71,45 @@ const ShareSheetContent = ({ sheetId }: ShareSheetContentProps) => {
     }
   }
 
+  const handleConfirmPayment = async (targetUser: string) => {
+    if (!user?.email) return
+
+    setPaymentLoading(true)
+    setPaymentError('')
+    setPaymentSuccess('')
+
+    try {
+      const updated = await confirmPaymentStatus(
+        sheetId,
+        user.email,
+        targetUser,
+      )
+      setData(updated)
+      setPaymentSuccess(`Marked ${targetUser} as paid.`)
+    } catch (err) {
+      setPaymentError(
+        err instanceof Error ? err.message : 'Failed to confirm payment',
+      )
+    } finally {
+      setPaymentLoading(false)
+    }
+  }
+
   const shareUrl = getShareSheetUrl(sheetId)
 
   const handleCopy = async () => {
+    if (!sheetData) return
+
+    const message = buildShareCopyMessage({
+      sheetName: sheetData.name,
+      shareUrl,
+      users: sheetData.users,
+      pending: sheetData.summary.pending,
+      ownerName: sheetData.ownerName,
+    })
+
     try {
-      await navigator.clipboard.writeText(shareUrl)
+      await navigator.clipboard.writeText(message)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
     } catch {
@@ -154,10 +194,14 @@ const ShareSheetContent = ({ sheetId }: ShareSheetContentProps) => {
               mode="view"
               summary={sheetData.summary}
               currentSheetUser={isAuthenticated ? currentSheetUser : null}
+              canManagePayments={canManagePayments}
               onRequestPayment={
                 isAuthenticated && currentSheetUser
                   ? handleRequestPayment
                   : undefined
+              }
+              onConfirmPayment={
+                canManagePayments ? handleConfirmPayment : undefined
               }
               paymentActionLoading={paymentLoading}
             />

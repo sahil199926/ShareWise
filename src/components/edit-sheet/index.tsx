@@ -195,7 +195,7 @@ const EditSheetContent = ({
       const updated = await requestPaymentStatus(sheetId, requesterEmail)
       setData(updated)
       setLocalDraft(null)
-      setSuccess('Payment request sent to admin.')
+      setSuccess('Status updated to requested paid.')
     } catch (err) {
       setPaymentError(
         err instanceof Error ? err.message : 'Failed to request payment',

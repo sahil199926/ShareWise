@@ -26,7 +26,7 @@ export const getSharedExpenseSheet = async (
 ) => {
   const response = await callSheetApi<{ sheet: ExpenseSheetData }>(
     'getSharedExpenseSheet',
-    { sheetId },
+    requesterEmail ? { sheetId, requesterEmail } : { sheetId },
   )
 
   if (!response.success || !response.sheet) {

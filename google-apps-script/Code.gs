@@ -110,7 +110,7 @@ function doPost(e) {
       case 'getExpenseSheet':
         return handleGetExpenseSheet_(body.sheetId, body.requesterEmail)
       case 'getSharedExpenseSheet':
-        return handleGetSharedExpenseSheet_(body.sheetId)
+        return handleGetSharedExpenseSheet_(body.sheetId, body.requesterEmail)
       case 'updateExpenseSheet':
         return handleUpdateExpenseSheet_(
           body.sheetId,
@@ -839,8 +839,12 @@ function normalizePaymentStatus_(value) {
     return 'Paid'
   }
 
-  if (normalized === 'PAY REQUESTED') {
-    return 'Pay Requested'
+  if (normalized === 'PAY REQUESTED' || normalized === 'REQUESTED PAID') {
+    return 'Requested paid'
+  }
+
+  if (normalized === 'NOT PAID') {
+    return 'Not Paid'
   }
 
   return 'Not Paid'
@@ -875,6 +879,10 @@ function getPaymentStatusSheetValue_(status) {
     return 'PAID'
   }
 
+  if (status === 'Requested paid') {
+    return 'Requested paid'
+  }
+
   return status
 }
 
@@ -890,7 +898,7 @@ function applyPaymentStatusFormatting_(sheet, statusRowIndex, users, paymentStat
 
     if (status === 'Paid') {
       cell.setBackground('#d9ead3')
-    } else if (status === 'Pay Requested') {
+    } else if (status === 'Requested paid') {
       cell.setBackground('#fff4e5')
     } else {
       cell.setBackground('#ffffff')
@@ -1121,25 +1129,30 @@ function getExpenseSheetAccess_(requesterEmail, sheet) {
   }
 }
 
+function getExpenseSheetAccessSafe_(requesterEmail, sheet) {
+  if (!requesterEmail) {
+    return null
+  }
+
+  try {
+    return getExpenseSheetAccess_(requesterEmail, sheet)
+  } catch (error) {
+    return null
+  }
+}
+
 function enrichExpenseSheetResponse_(sheet, requesterEmail) {
   var parsed = parseExpenseSheet_(sheet)
   delete parsed.meta
 
   var owner = getSheetOwnerInfo_(sheet)
-  var access = requesterEmail
-    ? getExpenseSheetAccess_(requesterEmail, sheet)
-    : {
-        ownerEmail: owner.ownerEmail,
-        ownerName: owner.ownerName,
-        canEdit: false,
-        canManagePayments: false,
-      }
+  var access = getExpenseSheetAccessSafe_(requesterEmail, sheet)
 
   parsed.ownerEmail = owner.ownerEmail
   parsed.ownerName = owner.ownerName
   parsed.permissions = {
-    canEdit: access.canEdit,
-    canManagePayments: access.canManagePayments,
+    canEdit: access ? access.canEdit : false,
+    canManagePayments: access ? access.canManagePayments : false,
   }
 
   return parsed
@@ -1173,7 +1186,7 @@ function handleGetExpenseSheet_(sheetId, requesterEmail) {
   }
 }
 
-function handleGetSharedExpenseSheet_(sheetId) {
+function handleGetSharedExpenseSheet_(sheetId, requesterEmail) {
   try {
     var sheet = getSheetById_(sheetId)
 
@@ -1183,7 +1196,7 @@ function handleGetSharedExpenseSheet_(sheetId) {
 
     return jsonResponse_({
       success: true,
-      sheet: enrichExpenseSheetResponse_(sheet, null),
+      sheet: enrichExpenseSheetResponse_(sheet, requesterEmail || null),
     })
   } catch (error) {
     return jsonResponse_({
@@ -1347,7 +1360,7 @@ function handleRequestPaymentStatus_(sheetId, requesterEmail) {
     }
 
     var userIndex = parsed.users.indexOf(sheetUser)
-    var nextStatus = 'Pay Requested'
+    var nextStatus = 'Requested paid'
     var nextStatuses = {}
 
     for (var i = 0; i < parsed.users.length; i++) {
@@ -1358,11 +1371,12 @@ function handleRequestPaymentStatus_(sheetId, requesterEmail) {
 
     nextStatuses[sheetUser] = nextStatus
 
-    sheet
-      .getRange(parsed.meta.statusRowIndex, 2 + userIndex)
-      .setValue(getPaymentStatusSheetValue_(nextStatus))
-      .setFontWeight('bold')
-      .setBackground('#fff4e5')
+    applyPaymentStatusFormatting_(
+      sheet,
+      parsed.meta.statusRowIndex,
+      parsed.users,
+      nextStatuses,
+    )
 
     return jsonResponse_({
       success: true,
@@ -1414,7 +1428,7 @@ function handleConfirmPaymentStatus_(sheetId, requesterEmail, targetUser) {
       parsed.summary.paymentStatus[matchedUser],
     )
 
-    if (currentStatus !== 'Pay Requested') {
+    if (currentStatus !== 'Requested paid') {
       return jsonResponse_({
         success: false,
         message: 'No payment request pending for this user',

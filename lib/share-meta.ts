@@ -43,3 +43,42 @@ export const buildShareMetaDescription = (
 
 export const buildShareMetaTitle = (sheetName: string) =>
   `${sheetName} — ShareWise`
+
+export const buildShareCopyMessage = ({
+  sheetName,
+  shareUrl,
+  users,
+  pending,
+  ownerName,
+}: {
+  sheetName: string
+  shareUrl: string
+  users: string[]
+  pending: Record<string, number>
+  ownerName?: string
+}) => {
+  const balanceLines = users.map((user) => {
+    const amount = pending[user] ?? 0
+
+    if (amount < 0) {
+      return `• ${user} — Gets ${formatShareAmount(Math.abs(amount))}`
+    }
+
+    if (amount > 0) {
+      return `• ${user} — Will give ${formatShareAmount(amount)}`
+    }
+
+    return `• ${user} — Settled`
+  })
+
+  const lines = [sheetName, shareUrl, '', 'Balances:', ...balanceLines]
+
+  if (ownerName) {
+    lines.push(
+      '',
+      `Note: Money transfer/receivable will be handled by ${ownerName}.`,
+    )
+  }
+
+  return lines.join('\n')
+}
