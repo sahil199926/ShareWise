@@ -1328,7 +1328,7 @@ function handleRequestPaymentStatus_(sheetId, requesterEmail) {
 
     var pending = parsed.summary.pending[sheetUser] || 0
 
-    if (pending <= 0) {
+    if (pending >= 0) {
       return jsonResponse_({
         success: false,
         message: 'No outstanding balance to request payment for',

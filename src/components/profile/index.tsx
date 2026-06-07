@@ -163,10 +163,10 @@ const Profile = () => {
                   {initials}
                 </span>
                 <div className="text-center sm:text-left">
-                  <h2 className="text-2xl font-bold text-high">
+                  <h2 className="hero-banner-title">
                     {isLoading ? 'Loading...' : displayUser.name}
                   </h2>
-                  <p className="mt-1 text-sm text-accent">{user.email}</p>
+                  <p className="hero-banner-subtitle">{user.email}</p>
                 </div>
               </div>
 

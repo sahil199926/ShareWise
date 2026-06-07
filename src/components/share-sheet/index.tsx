@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import ExpenseSheetView from '../expense-sheet-view'
 import Logo from '../logo'
 import { useAuth } from '../../hooks/use-auth'
+import { useShareMeta } from '../../hooks/use-share-meta'
 import { useSharedExpenseSheet } from '../../hooks/use-shared-expense-sheet'
 import { findSheetUserName } from '../../lib/sheet-user-utils'
 import { getEditSheetPath, getShareSheetUrl } from '../../lib/sheet-urls'
@@ -32,6 +33,8 @@ const ShareSheetContent = ({ sheetId }: ShareSheetContentProps) => {
     error,
     isLoading,
   } = useSharedExpenseSheet(sheetId, user?.email)
+
+  useShareMeta(sheetId, sheetData)
   const [copied, setCopied] = useState(false)
   const [paymentLoading, setPaymentLoading] = useState(false)
   const [paymentError, setPaymentError] = useState('')

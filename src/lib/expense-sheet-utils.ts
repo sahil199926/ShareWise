@@ -47,6 +47,18 @@ export const getPendingTone = (value: number) => {
   return 'zero'
 }
 
+export const formatPendingBalanceLabel = (pending: number) => {
+  if (pending < 0) {
+    return `Gets ${formatAmount(Math.abs(pending))}`
+  }
+
+  if (pending > 0) {
+    return `Will give ${formatAmount(pending)}`
+  }
+
+  return 'Settled'
+}
+
 export const createClientId = () => {
   return crypto.randomUUID()
 }

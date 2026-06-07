@@ -43,20 +43,23 @@
 }
 
 .dark {
+  --sw-emerald-deep: #060b09;
+  --sw-emerald-mid: #101a14;
+  --sw-emerald-light: #2d5a47;
   --sw-gold: #e7c577;
-  --sw-app-bg: #1f262d;
-  --sw-surface: #1d4133;
-  --sw-surface-elevated: #253530;
-  --sw-text-high: #ffffff;
-  --sw-text-medium: #e6e6e6;
-  --sw-text-low: #999999;
-  --sw-divider: #37404a;
+  --sw-app-bg: #060b09;
+  --sw-surface: #0c1410;
+  --sw-surface-elevated: #121d17;
+  --sw-text-high: #f4f7f5;
+  --sw-text-medium: #c2d0c8;
+  --sw-text-low: #7f9489;
+  --sw-divider: #1a2821;
   --sw-danger: #e85d4c;
-  --sw-danger-bg: rgba(232, 93, 76, 0.12);
-  --sw-success: #3a7e64;
-  --sw-success-bg: rgba(58, 126, 100, 0.15);
-  --sw-header-gradient-from: #2a5f4b;
-  --sw-header-gradient-to: #1d4133;
+  --sw-danger-bg: rgba(232, 93, 76, 0.14);
+  --sw-success: #4f9b78;
+  --sw-success-bg: rgba(79, 155, 120, 0.16);
+  --sw-header-gradient-from: #152019;
+  --sw-header-gradient-to: #060b09;
 }
 
 @layer base {
@@ -142,10 +145,23 @@
       var(--sw-header-gradient-from),
       var(--sw-header-gradient-to)
     );
+    color: #ffffff;
+  }
+
+  .hero-banner-title {
+    @apply text-2xl font-bold text-white;
+  }
+
+  .hero-banner-subtitle {
+    @apply mt-1 text-sm text-white/75;
+  }
+
+  .hero-banner .btn-secondary {
+    @apply border-white/35 bg-white/10 text-white hover:border-white/55 hover:bg-white/15;
   }
 
   .avatar-ring {
-    @apply flex items-center justify-center rounded-full bg-surface font-semibold text-emerald-deep;
+    @apply flex items-center justify-center rounded-full bg-white font-semibold text-emerald-deep shadow-md;
   }
 
   .badge-accent {
@@ -310,6 +326,10 @@
     @apply rounded-full px-2.5 py-1 text-xs font-semibold;
   }
 
+  .expense-pending-pill--label {
+    @apply max-w-[9.5rem] rounded-xl px-2.5 py-1.5 text-right leading-tight;
+  }
+
   .expense-pending-credit {
     background: var(--sw-success-bg);
     color: var(--sw-success);
@@ -345,6 +365,12 @@
     @apply bg-[#d9d9d9] text-xs font-bold tracking-wide text-high uppercase;
   }
 
+  .dark .expense-row-header th {
+    background: var(--sw-emerald-mid);
+    color: var(--sw-text-high);
+    border-color: var(--sw-divider);
+  }
+
   .expense-row-item td {
     background: #fff8e1;
   }
@@ -354,7 +380,8 @@
   }
 
   .dark .expense-row-item td {
-    background: rgba(201, 168, 76, 0.12);
+    background: rgba(201, 168, 76, 0.08);
+    color: var(--sw-text-high);
   }
 
   .expense-row-total td {
@@ -363,7 +390,8 @@
   }
 
   .dark .expense-row-total td {
-    background: rgba(100, 149, 237, 0.15);
+    background: rgba(58, 126, 100, 0.14);
+    color: var(--sw-text-high);
   }
 
   .expense-row-given td {
@@ -514,7 +542,7 @@
 
   .dark .share-page .expense-row-header th {
     background: #d9d9d9;
-    color: var(--sw-text-high);
+    color: #1d4133;
   }
 
   .dark .share-page .expense-row-item td {

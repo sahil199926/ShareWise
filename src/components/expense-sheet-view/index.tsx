@@ -11,6 +11,7 @@ import { PAYMENT_STATUS } from '../../constants/payment-status'
 import {
   createDefaultPaymentStatus,
   formatAmount,
+  formatPendingBalanceLabel,
   formatPaidBy,
   getPendingTone,
   normalizePaidBy,
@@ -237,10 +238,9 @@ const ExpenseSheetView = ({
                   </div>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`expense-pending-pill ${pendingToneClass[tone]}`}
+                      className={`expense-pending-pill expense-pending-pill--label ${pendingToneClass[tone]}`}
                     >
-                      {pending > 0 ? '+' : ''}
-                      {formatAmount(pending)}
+                      {formatPendingBalanceLabel(pending)}
                     </span>
                     {isEdit && users.length > 1 ? (
                       <button
@@ -473,8 +473,7 @@ const ExpenseSheetView = ({
                       key={user}
                       className={`font-bold ${pendingToneClass[tone]}`}
                     >
-                      {pending > 0 ? '+' : ''}
-                      {formatAmount(pending)}
+                      {formatPendingBalanceLabel(pending)}
                     </td>
                   )
                 })}
@@ -493,7 +492,7 @@ const ExpenseSheetView = ({
                   const pending = summaryWithStatus.pending[user] || 0
                   const canRequest =
                     currentSheetUser === user &&
-                    pending > 0 &&
+                    pending < 0 &&
                     status === PAYMENT_STATUS.NOT_PAID &&
                     Boolean(onRequestPayment)
                   const canConfirm =

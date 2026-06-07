@@ -4,6 +4,17 @@
   "framework": "vite",
   "rewrites": [
     {
+      "source": "/share-sheet/:id",
+      "has": [
+        {
+          "type": "header",
+          "key": "User-Agent",
+          "value": "(?i).*(facebookexternalhit|whatsapp|twitterbot|telegrambot|linkedinbot|slackbot|discordbot|bingbot|googlebot|applebot|pinterest|embedly|iframely|vkshare|w3c_validator).*"
+        }
+      ],
+      "destination": "/api/share-sheet-meta?id=:id"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
