@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'motion/react'
 import Avatar from '../avatar'
+import BoardCheer from '../board-cheer'
 import DayRangeFilter from '../day-range-filter'
 import LeaderboardFrame from '../leaderboard-frame'
 import { StatCardSkeleton } from '../skeleton'
@@ -199,59 +200,62 @@ const Leaderboard = () => {
         </p>
       </div>
 
-      <div className="mt-4 space-y-3">
-        {!isLoading && ranked.length === 0 ? (
-          <p className="glass-card px-5 py-8 text-center text-sm text-low">
-            Nothing on this board in the last {range} days.
-          </p>
-        ) : null}
+      <div className="relative mt-4">
+        <BoardCheer key={board} board={board} />
+        <div className="space-y-3">
+          {!isLoading && ranked.length === 0 ? (
+            <p className="glass-card px-5 py-8 text-center text-sm text-low">
+              Nothing on this board in the last {range} days.
+            </p>
+          ) : null}
 
-        {ranked.map((person, index) => {
-          const width = maxAmount > 0 ? (person.amount / maxAmount) * 100 : 0
-          const tone = BOARDS.find((item) => item.id === board)?.tone
+          {ranked.map((person, index) => {
+            const width = maxAmount > 0 ? (person.amount / maxAmount) * 100 : 0
+            const tone = BOARDS.find((item) => item.id === board)?.tone
 
-          return (
-            <Link
-              key={person.email}
-              to={personPath(person.email)}
-              className="glass-card block p-4 sm:p-5"
-            >
-              <div className="flex items-center gap-4">
-                <span className="w-6 shrink-0 text-2xl font-bold text-emerald-deep sm:w-8 sm:text-3xl">
-                  {index + 1}
-                </span>
-                <Avatar
-                  name={person.name}
-                  avatarUrl={avatarForEmail(person.email, faces, user)}
-                  className="h-9 w-9 text-xs sm:h-11 sm:w-11 sm:text-sm"
-                />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className="truncate text-lg font-semibold text-high">
-                      {person.name}
-                    </p>
-                    <p
-                      className={`shrink-0 text-base font-bold sm:text-xl ${amountClass[board]}`}
-                    >
-                      {formatRupee(person.amount)}
-                    </p>
-                  </div>
-                  <div className="mt-3 h-4 overflow-hidden rounded-full bg-emerald/10">
-                    <motion.div
-                      className={`h-full rounded-full ${tone}`}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${width}%` }}
-                      transition={{
-                        duration: 0.45,
-                        ease: [0.22, 1, 0.36, 1],
-                      }}
-                    />
+            return (
+              <Link
+                key={person.email}
+                to={personPath(person.email)}
+                className="glass-card block p-4 sm:p-5"
+              >
+                <div className="flex items-center gap-4">
+                  <span className="w-6 shrink-0 text-2xl font-bold text-emerald-deep sm:w-8 sm:text-3xl">
+                    {index + 1}
+                  </span>
+                  <Avatar
+                    name={person.name}
+                    avatarUrl={avatarForEmail(person.email, faces, user)}
+                    className="h-9 w-9 text-xs sm:h-11 sm:w-11 sm:text-sm"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="truncate text-lg font-semibold text-high">
+                        {person.name}
+                      </p>
+                      <p
+                        className={`shrink-0 text-base font-bold sm:text-xl ${amountClass[board]}`}
+                      >
+                        {formatRupee(person.amount)}
+                      </p>
+                    </div>
+                    <div className="mt-3 h-4 overflow-hidden rounded-full bg-emerald/10">
+                      <motion.div
+                        className={`h-full rounded-full ${tone}`}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${width}%` }}
+                        transition={{
+                          duration: 0.45,
+                          ease: [0.22, 1, 0.36, 1],
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          )
-        })}
+              </Link>
+            )
+          })}
+        </div>
       </div>
     </LeaderboardFrame>
   )

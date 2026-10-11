@@ -78,6 +78,12 @@ const DebtCard = ({
     : isCreditor
       ? 'text-emerald-deep'
       : 'text-high'
+  const giveWord =
+    debt.status === DEBT_STATUS.CLOSED
+      ? 'has given'
+      : debt.status === DEBT_STATUS.CLOSE_REQUESTED
+        ? 'is giving'
+        : 'will give'
 
   return (
     <article className={`glass-card p-5 ${toneClass}`}>
@@ -95,7 +101,7 @@ const DebtCard = ({
               />
               <span className="truncate">{debt.debtorName}</span>
             </span>
-            <span className="font-normal text-low">will give</span>
+            <span className="font-normal text-low">{giveWord}</span>
             <span className="inline-flex min-w-0 items-center gap-1.5">
               <Avatar
                 name={debt.creditorName}
@@ -194,7 +200,7 @@ const DebtCard = ({
             </button>
           ) : null}
 
-          {isAdmin && onEdit ? (
+          {isAdmin && onEdit && debt.status === DEBT_STATUS.OPEN ? (
             <button
               type="button"
               onClick={() => onEdit(debt)}
