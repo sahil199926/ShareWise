@@ -14,7 +14,9 @@ const DayRangeFilter = ({ value, onChange }: DayRangeFilterProps) => {
           type="button"
           onClick={() => onChange(option)}
           aria-pressed={value === option}
-          className={value === option ? 'filter-chip-active' : 'filter-chip'}
+          className={`${
+            value === option ? 'filter-chip-active' : 'filter-chip'
+          } px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm`}
         >
           {option} days
         </button>

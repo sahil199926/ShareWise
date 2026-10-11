@@ -81,11 +81,11 @@ const AppHeader = ({
           <div className="flex min-w-0 items-center gap-3">
             {titleLeading}
             <div className="min-w-0">
-              <h1 className="text-xl font-semibold text-high sm:text-2xl">
+              <h1 className="text-lg font-semibold text-high sm:text-2xl">
                 {title}
               </h1>
               {subtitle ? (
-                <p className="mt-1 text-sm text-low">{subtitle}</p>
+                <p className="mt-1 text-xs text-low sm:text-sm">{subtitle}</p>
               ) : null}
             </div>
           </div>
@@ -108,7 +108,7 @@ const AppHeader = ({
                 <Link
                   key={link.to}
                   to={link.to}
-                  className={`relative rounded-full px-4 py-1.5 text-sm font-medium transition ${
+                  className={`relative rounded-full px-3 py-1.5 text-xs font-medium transition sm:px-4 sm:text-sm ${
                     isActive ? 'text-white' : 'text-low hover:text-high'
                   }`}
                 >

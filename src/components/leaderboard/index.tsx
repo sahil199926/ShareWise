@@ -146,16 +146,18 @@ const Leaderboard = () => {
                       className="h-12 w-12 text-sm"
                     />
                   ) : null}
-                  <p className="truncate text-2xl font-bold text-high">
+                  <p className="truncate text-lg font-bold text-high sm:text-2xl">
                     {spot.top?.name ?? 'No one yet'}
                   </p>
                 </div>
                 <p
-                  className={`mt-2 text-3xl font-bold ${amountClass[spot.id]}`}
+                  className={`mt-2 text-2xl font-bold sm:text-3xl ${amountClass[spot.id]}`}
                 >
                   {spot.top ? formatRupee(spot.top.amount) : '₹0'}
                 </p>
-                <p className="mt-2 text-sm text-low">{spot.meta.hint}</p>
+                <p className="mt-2 text-xs text-low sm:text-sm">
+                  {spot.meta.hint}
+                </p>
               </>
             )
 
@@ -180,81 +182,84 @@ const Leaderboard = () => {
         </div>
       )}
 
-      <div className="mt-8">
-        <div className="flex flex-wrap gap-2">
-          {BOARDS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setBoard(item.id)}
-              className={
-                board === item.id ? 'filter-chip-active' : 'filter-chip'
-              }
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        <p className="mt-3 text-sm text-medium">
-          {BOARDS.find((item) => item.id === board)?.summary(range)}
-        </p>
-      </div>
-
-      <div className="relative mt-4">
+      <div className="relative mt-8">
         <BoardCheer key={board} board={board} />
-        <div className="space-y-3">
-          {!isLoading && ranked.length === 0 ? (
-            <p className="glass-card px-5 py-8 text-center text-sm text-low">
-              Nothing on this board in the last {range} days.
-            </p>
-          ) : null}
-
-          {ranked.map((person, index) => {
-            const width = maxAmount > 0 ? (person.amount / maxAmount) * 100 : 0
-            const tone = BOARDS.find((item) => item.id === board)?.tone
-
-            return (
-              <Link
-                key={person.email}
-                to={personPath(person.email)}
-                className="glass-card block p-4 sm:p-5"
+        <div>
+          <div className="flex flex-wrap gap-2">
+            {BOARDS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setBoard(item.id)}
+                className={
+                  board === item.id ? 'filter-chip-active' : 'filter-chip'
+                }
               >
-                <div className="flex items-center gap-4">
-                  <span className="w-6 shrink-0 text-2xl font-bold text-emerald-deep sm:w-8 sm:text-3xl">
-                    {index + 1}
-                  </span>
-                  <Avatar
-                    name={person.name}
-                    avatarUrl={avatarForEmail(person.email, faces, user)}
-                    className="h-9 w-9 text-xs sm:h-11 sm:w-11 sm:text-sm"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <p className="truncate text-lg font-semibold text-high">
-                        {person.name}
-                      </p>
-                      <p
-                        className={`shrink-0 text-base font-bold sm:text-xl ${amountClass[board]}`}
-                      >
-                        {formatRupee(person.amount)}
-                      </p>
-                    </div>
-                    <div className="mt-3 h-4 overflow-hidden rounded-full bg-emerald/10">
-                      <motion.div
-                        className={`h-full rounded-full ${tone}`}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${width}%` }}
-                        transition={{
-                          duration: 0.45,
-                          ease: [0.22, 1, 0.36, 1],
-                        }}
-                      />
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-medium sm:text-sm">
+            {BOARDS.find((item) => item.id === board)?.summary(range)}
+          </p>
+        </div>
+
+        <div className="mt-4">
+          <div className="space-y-3">
+            {!isLoading && ranked.length === 0 ? (
+              <p className="glass-card px-5 py-8 text-center text-sm text-low">
+                Nothing on this board in the last {range} days.
+              </p>
+            ) : null}
+
+            {ranked.map((person, index) => {
+              const width =
+                maxAmount > 0 ? (person.amount / maxAmount) * 100 : 0
+              const tone = BOARDS.find((item) => item.id === board)?.tone
+
+              return (
+                <Link
+                  key={person.email}
+                  to={personPath(person.email)}
+                  className="glass-card block p-4 sm:p-5"
+                >
+                  <div className="flex items-center gap-4">
+                    <span className="w-5 shrink-0 text-xl font-bold text-emerald-deep sm:w-8 sm:text-3xl">
+                      {index + 1}
+                    </span>
+                    <Avatar
+                      name={person.name}
+                      avatarUrl={avatarForEmail(person.email, faces, user)}
+                      className="h-9 w-9 text-xs sm:h-11 sm:w-11 sm:text-sm"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="truncate text-base font-semibold text-high sm:text-lg">
+                          {person.name}
+                        </p>
+                        <p
+                          className={`shrink-0 text-sm font-bold sm:text-xl ${amountClass[board]}`}
+                        >
+                          {formatRupee(person.amount)}
+                        </p>
+                      </div>
+                      <div className="mt-3 h-4 overflow-hidden rounded-full bg-emerald/10">
+                        <motion.div
+                          className={`h-full rounded-full ${tone}`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${width}%` }}
+                          transition={{
+                            duration: 0.45,
+                            ease: [0.22, 1, 0.36, 1],
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Link>
-            )
-          })}
+                </Link>
+              )
+            })}
+          </div>
         </div>
       </div>
     </LeaderboardFrame>

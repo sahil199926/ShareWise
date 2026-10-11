@@ -49,10 +49,10 @@ const LeaderboardFrame = ({
             <div className="flex items-center gap-3">
               {titleLeading}
               <div>
-                <h1 className="text-xl font-semibold text-high sm:text-2xl">
+                <h1 className="text-lg font-semibold text-high sm:text-2xl">
                   {title}
                 </h1>
-                <p className="mt-1 text-sm text-low">{subtitle}</p>
+                <p className="mt-1 text-xs text-low sm:text-sm">{subtitle}</p>
               </div>
             </div>
             {headerAside}
