@@ -3,7 +3,10 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { APP_NAME } from '../../constants/brand'
 import { useAuth } from '../../hooks/use-auth'
 import { firebaseReady } from '../../lib/firebase'
-import { signInWithGoogle } from '../../services/auth.service'
+import {
+  NO_PLATFORM_ACCESS,
+  signInWithGoogle,
+} from '../../services/auth.service'
 import KarjaArt from '../karja-art'
 import LazyFallback from '../lazy-fallback'
 import Logo from '../logo'
@@ -11,6 +14,7 @@ import Logo from '../logo'
 const Login = () => {
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loginBlocked, setLoginBlocked] = useState(false)
   const { login, isAuthenticated, isBootstrapping } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
@@ -40,7 +44,9 @@ const Login = () => {
             return
           }
 
-          setError(err instanceof Error ? err.message : 'Login failed')
+          const message = err instanceof Error ? err.message : 'Login failed'
+          if (message === NO_PLATFORM_ACCESS) setLoginBlocked(true)
+          setError(message)
         })
         .finally(() => {
           setIsSubmitting(false)
@@ -50,6 +56,7 @@ const Login = () => {
   )
 
   const handleGoogleSignIn = () => {
+    if (loginBlocked || isSubmitting) return
     finishSignIn(signInWithGoogle())
   }
 
@@ -88,9 +95,9 @@ const Login = () => {
             {firebaseReady ? (
               <button
                 type="button"
-                className="btn-secondary flex min-h-11 w-full items-center justify-center gap-3 bg-white/80"
+                className="btn-secondary flex min-h-11 w-full items-center justify-center gap-3 bg-white/80 disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={handleGoogleSignIn}
-                disabled={isSubmitting}
+                disabled={isSubmitting || loginBlocked}
               >
                 <GoogleMark />
                 {isSubmitting ? 'Signing in…' : 'Continue with Google'}

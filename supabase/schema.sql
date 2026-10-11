@@ -186,7 +186,7 @@ begin
     where email = normalized_email;
 
     if found.id is null then
-      raise exception 'This Google account is not on the people list';
+      raise exception 'You don''t have access to this platform.';
     end if;
   end if;
 

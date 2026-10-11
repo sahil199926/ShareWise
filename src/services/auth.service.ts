@@ -7,6 +7,16 @@ import {
 import { supabase } from '../lib/supabase'
 import type { User } from '../types/auth'
 
+export const NO_PLATFORM_ACCESS = "You don't have access to this platform."
+
+const accessError = (message: string) => {
+  if (!message || message.includes('not on the people list')) {
+    return NO_PLATFORM_ACCESS
+  }
+
+  return message
+}
+
 const toUser = (value: unknown): User => {
   const user = value as Partial<User>
 
@@ -81,7 +91,7 @@ const loginWithGoogle = async (
     throw new Error(
       message.includes('login_with_google') || message.includes('schema cache')
         ? 'Google sign-in is not ready yet. Run the latest supabase/schema.sql in the SQL editor, then try again.'
-        : message || 'This Google account is not on the people list',
+        : accessError(message),
     )
   }
 
