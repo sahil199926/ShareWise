@@ -78,7 +78,7 @@ src/
 - Sheet: **MASTER** (columns: `USERS | EMAIL | PASSWORD`)
 - Deployed as **Web App** (Execute as Me, Anyone can access)
 - Action-based API: `{ action: 'login', email, password }`
-- Env var: `VITE_SHEETS_API_URL` in `.env`
+- Env var: `SHEETS_API_URL` in `.env`
 
 ### Sheet Management (Dashboard)
 
@@ -134,7 +134,7 @@ All future features follow the same pattern:
 
 ```env
 # .env (not committed to git)
-VITE_SHEETS_API_URL=https://script.google.com/macros/s/YOUR_ID/exec
+SHEETS_API_URL=https://script.google.com/macros/s/YOUR_ID/exec
 ```
 
 ## Scripts

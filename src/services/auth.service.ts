@@ -1,4 +1,9 @@
-import { signInWithGooglePopup } from '../lib/firebase'
+import {
+  firebaseReady,
+  readGoogleIdToken,
+  signInWithGoogleIdToken,
+  signInWithGooglePopup,
+} from '../lib/firebase'
 import { supabase } from '../lib/supabase'
 import type { User } from '../types/auth'
 
@@ -21,6 +26,30 @@ const toUser = (value: unknown): User => {
 
 export const signInWithGoogle = async () => {
   const profile = await signInWithGooglePopup()
+  return loginWithGoogle(profile.email, profile.googleId, profile.avatarUrl)
+}
+
+export const signInWithGoogleOneTap = async (idToken: string) => {
+  try {
+    if (firebaseReady) {
+      const profile = await signInWithGoogleIdToken(idToken)
+      return loginWithGoogle(profile.email, profile.googleId, profile.avatarUrl)
+    }
+  } catch (err) {
+    const code =
+      err && typeof err === 'object' && 'code' in err ? String(err.code) : ''
+
+    if (
+      code &&
+      code !== 'auth/invalid-credential' &&
+      code !== 'auth/argument-error' &&
+      code !== 'auth/operation-not-allowed'
+    ) {
+      throw err
+    }
+  }
+
+  const profile = readGoogleIdToken(idToken)
   return loginWithGoogle(profile.email, profile.googleId, profile.avatarUrl)
 }
 

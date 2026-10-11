@@ -1,9 +1,17 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { APP_NAME } from '../../constants/brand'
 import { useAuth } from '../../hooks/use-auth'
 import { firebaseReady } from '../../lib/firebase'
-import { signInWithGoogle } from '../../services/auth.service'
+import {
+  cancelGoogleOneTap,
+  googleClientId,
+  promptGoogleOneTap,
+} from '../../lib/google-one-tap'
+import {
+  signInWithGoogle,
+  signInWithGoogleOneTap,
+} from '../../services/auth.service'
 import KarjaArt from '../karja-art'
 import LazyFallback from '../lazy-fallback'
 import Logo from '../logo'
@@ -19,31 +27,59 @@ const Login = () => {
     (location.state as { from?: { pathname: string } } | null)?.from
       ?.pathname ?? '/dashboard'
 
+  const finishSignIn = useCallback(
+    (attempt: Promise<Awaited<ReturnType<typeof signInWithGoogle>>>) => {
+      setError('')
+      setIsSubmitting(true)
+
+      void attempt
+        .then((user) => {
+          login(user)
+          navigate(from, { replace: true })
+        })
+        .catch((err: unknown) => {
+          const code =
+            err && typeof err === 'object' && 'code' in err
+              ? String(err.code)
+              : ''
+
+          if (code === 'auth/popup-closed-by-user') {
+            setError('')
+            return
+          }
+
+          setError(err instanceof Error ? err.message : 'Login failed')
+        })
+        .finally(() => {
+          setIsSubmitting(false)
+        })
+    },
+    [from, login, navigate],
+  )
+
+  useEffect(() => {
+    if (isBootstrapping || isAuthenticated || !googleClientId) return
+
+    let cancelled = false
+
+    promptGoogleOneTap((idToken) => {
+      if (cancelled) return
+      finishSignIn(signInWithGoogleOneTap(idToken))
+    }).catch((err: unknown) => {
+      if (cancelled) return
+      setError(
+        err instanceof Error ? err.message : 'Google sign-in failed to load',
+      )
+    })
+
+    return () => {
+      cancelled = true
+      cancelGoogleOneTap()
+    }
+  }, [finishSignIn, isAuthenticated, isBootstrapping])
+
   const handleGoogleSignIn = () => {
-    setError('')
-    setIsSubmitting(true)
-
-    void signInWithGoogle()
-      .then((user) => {
-        login(user)
-        navigate(from, { replace: true })
-      })
-      .catch((err: unknown) => {
-        const code =
-          err && typeof err === 'object' && 'code' in err
-            ? String(err.code)
-            : ''
-
-        if (code === 'auth/popup-closed-by-user') {
-          setError('')
-          return
-        }
-
-        setError(err instanceof Error ? err.message : 'Login failed')
-      })
-      .finally(() => {
-        setIsSubmitting(false)
-      })
+    finishSignIn(signInWithGoogle())
   }
 
   if (isBootstrapping) {
