@@ -1,4 +1,4 @@
-import type { PaginationMeta } from '../../types/sheet'
+import type { PaginationMeta } from '../../types/pagination'
 
 type PaginationProps = {
   pagination: PaginationMeta

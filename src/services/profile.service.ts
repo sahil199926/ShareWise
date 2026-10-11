@@ -1,33 +1,48 @@
-import { callSheetApi, formatSheetApiError } from '../lib/sheets-api'
+import { supabase } from '../lib/supabase'
 import type { User } from '../types/auth'
 import type { ProfileUpdateInput } from '../types/profile'
 
-type ProfileResult = {
-  user: User
+const toUser = (value: unknown): User => {
+  const user = value as Partial<User>
+
+  if (!user?.email || !user.name) {
+    throw new Error('Profile not found')
+  }
+
+  return {
+    name: user.name,
+    email: user.email,
+    type: user.type ?? 'User',
+    age: user.age ?? null,
+    score: user.score ?? null,
+  }
 }
 
 export const getProfile = async (email: string) => {
-  const response = await callSheetApi<ProfileResult>('getProfile', { email })
+  const { data, error } = await supabase.rpc('get_profile', {
+    p_email: email,
+  })
 
-  if (!response.success || !response.user) {
-    throw new Error(formatSheetApiError(response.message, 'getProfile'))
+  if (error || !data) {
+    throw new Error(error?.message || 'Failed to load profile')
   }
 
-  return response.user
+  return toUser(data)
 }
 
 export const updateProfile = async (
   email: string,
   profile: ProfileUpdateInput,
 ) => {
-  const response = await callSheetApi<ProfileResult>('updateProfile', {
-    email,
-    profile,
+  const { data, error } = await supabase.rpc('update_profile', {
+    p_email: email,
+    p_name: profile.name,
+    p_age: profile.age,
   })
 
-  if (!response.success || !response.user) {
-    throw new Error(formatSheetApiError(response.message, 'updateProfile'))
+  if (error || !data) {
+    throw new Error(error?.message || 'Failed to update profile')
   }
 
-  return response.user
+  return toUser(data)
 }

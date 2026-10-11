@@ -8,7 +8,7 @@ import {
 import { ThemeContext } from './theme-context'
 
 const getInitialTheme = (): ThemeMode => {
-  return getStoredTheme() ?? 'dark'
+  return getStoredTheme() ?? 'light'
 }
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {

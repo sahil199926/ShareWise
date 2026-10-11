@@ -41,12 +41,6 @@ const UsersTable = ({
         header: 'EMAIL',
         cell: (info) => <span className="text-medium">{info.getValue()}</span>,
       }),
-      columnHelper.accessor('password', {
-        header: 'PASSWORD',
-        cell: (info) => (
-          <span className="font-mono text-medium">{info.getValue()}</span>
-        ),
-      }),
       columnHelper.accessor('type', {
         header: 'TYPE',
         cell: (info) => {

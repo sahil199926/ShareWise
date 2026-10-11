@@ -46,14 +46,14 @@ const ProfileMenu = () => {
         onClick={() => setIsOpen((open) => !open)}
         aria-expanded={isOpen}
         aria-haspopup="true"
-        className="flex items-center gap-2 rounded-lg border border-divider px-2 py-1.5 transition hover:bg-surface-elevated sm:px-3"
+        className="flex items-center gap-2 rounded-full border border-white/80 bg-white/70 py-1 pr-1 pl-1 shadow-sm transition hover:bg-white sm:pr-2.5"
       >
         <span className="avatar-ring h-8 w-8 text-xs">{initials}</span>
         <span className="hidden max-w-32 truncate text-sm font-medium text-medium sm:inline">
           {user.name}
         </span>
         <svg
-          className={`h-4 w-4 text-low transition ${isOpen ? 'rotate-180' : ''}`}
+          className={`hidden h-4 w-4 text-low transition sm:block ${isOpen ? 'rotate-180' : ''}`}
           viewBox="0 0 20 20"
           fill="currentColor"
           aria-hidden="true"
@@ -67,7 +67,7 @@ const ProfileMenu = () => {
       </button>
 
       {isOpen ? (
-        <div className="absolute right-0 z-50 mt-2 w-56 rounded-2xl border border-divider bg-surface py-2 shadow-lg">
+        <div className="absolute right-0 z-50 mt-2 w-56 rounded-2xl border border-white/70 bg-white/85 py-2 shadow-lg backdrop-blur-xl">
           <div className="border-b border-divider px-4 py-3">
             <p className="section-label">Account</p>
             <p className="mt-1 truncate text-sm font-semibold text-high">

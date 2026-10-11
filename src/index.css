@@ -3,63 +3,41 @@
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
 
-  --color-app: var(--sw-app-bg);
-  --color-surface: var(--sw-surface);
-  --color-surface-elevated: var(--sw-surface-elevated);
-  --color-brand: var(--sw-terracotta);
-  --color-brand-hover: var(--sw-terracotta-muted);
-  --color-accent: var(--sw-gold);
-  --color-emerald: var(--sw-emerald-mid);
-  --color-emerald-light: var(--sw-emerald-light);
-  --color-emerald-deep: var(--sw-emerald-deep);
-  --color-high: var(--sw-text-high);
-  --color-medium: var(--sw-text-medium);
-  --color-low: var(--sw-text-low);
-  --color-divider: var(--sw-divider);
-  --color-danger: var(--sw-danger);
-  --color-success: var(--sw-success);
+  --color-app: var(--kt-app-bg);
+  --color-surface: var(--kt-surface);
+  --color-surface-elevated: var(--kt-surface-elevated);
+  --color-brand: var(--kt-money);
+  --color-brand-hover: var(--kt-money-deep);
+  --color-accent: var(--kt-money-deep);
+  --color-emerald: var(--kt-money);
+  --color-emerald-light: var(--kt-money-bright);
+  --color-emerald-deep: var(--kt-money-deep);
+  --color-high: var(--kt-text-high);
+  --color-medium: var(--kt-text-medium);
+  --color-low: var(--kt-text-low);
+  --color-divider: var(--kt-divider);
+  --color-danger: var(--kt-danger);
+  --color-success: var(--kt-success);
 }
 
 :root {
-  --sw-emerald-deep: #1d4133;
-  --sw-emerald-mid: #2a5f4b;
-  --sw-emerald-light: #3a7e64;
-  --sw-terracotta: #cb6831;
-  --sw-terracotta-muted: #e48b57;
-  --sw-gold: #c9a84c;
-  --sw-app-bg: #f0f4f2;
-  --sw-surface: #ffffff;
-  --sw-surface-elevated: #f7faf8;
-  --sw-text-high: #1d4133;
-  --sw-text-medium: #2a5f4b;
-  --sw-text-low: #6b7f76;
-  --sw-divider: #d8e4de;
-  --sw-danger: #c94b3a;
-  --sw-danger-bg: #fdeeed;
-  --sw-success: #2a5f4b;
-  --sw-success-bg: #e8f3ed;
-  --sw-header-gradient-from: #2a5f4b;
-  --sw-header-gradient-to: #1d4133;
-}
-
-.dark {
-  --sw-emerald-deep: #060b09;
-  --sw-emerald-mid: #101a14;
-  --sw-emerald-light: #2d5a47;
-  --sw-gold: #e7c577;
-  --sw-app-bg: #060b09;
-  --sw-surface: #0c1410;
-  --sw-surface-elevated: #121d17;
-  --sw-text-high: #f4f7f5;
-  --sw-text-medium: #c2d0c8;
-  --sw-text-low: #7f9489;
-  --sw-divider: #1a2821;
-  --sw-danger: #e85d4c;
-  --sw-danger-bg: rgba(232, 93, 76, 0.14);
-  --sw-success: #4f9b78;
-  --sw-success-bg: rgba(79, 155, 120, 0.16);
-  --sw-header-gradient-from: #152019;
-  --sw-header-gradient-to: #060b09;
+  --kt-money: #16a34a;
+  --kt-money-bright: #22c55e;
+  --kt-money-deep: #15803d;
+  --kt-mint: #ecfdf3;
+  --kt-app-bg: #e8f6ee;
+  --kt-surface: rgba(255, 255, 255, 0.72);
+  --kt-surface-elevated: rgba(255, 255, 255, 0.88);
+  --kt-text-high: #14532d;
+  --kt-text-medium: #166534;
+  --kt-text-low: #4d7c5f;
+  --kt-divider: rgba(22, 163, 74, 0.16);
+  --kt-danger: #dc2626;
+  --kt-danger-bg: #fef2f2;
+  --kt-success: #15803d;
+  --kt-success-bg: #dcfce7;
+  --kt-glass-border: rgba(255, 255, 255, 0.7);
+  --kt-glass-shadow: 0 18px 50px -24px rgba(21, 128, 61, 0.35);
 }
 
 @layer base {
@@ -68,41 +46,62 @@
   }
 
   body {
-    @apply bg-app text-high antialiased;
+    @apply min-h-screen text-high antialiased;
+    background:
+      radial-gradient(circle at 12% -10%, rgba(74, 222, 128, 0.35), transparent 36%),
+      radial-gradient(circle at 92% 8%, rgba(34, 197, 94, 0.22), transparent 32%),
+      radial-gradient(circle at 50% 120%, rgba(187, 247, 208, 0.55), transparent 42%),
+      var(--kt-app-bg);
   }
 }
 
 @layer components {
   .page-shell {
-    @apply min-h-screen bg-app text-high;
+    @apply min-h-screen text-high;
   }
 
-  .card {
-    @apply rounded-2xl border border-divider bg-surface shadow-sm;
+  .glass-card,
+  .card,
+  .card-elevated {
+    @apply rounded-3xl border;
+    background: var(--kt-surface);
+    border-color: var(--kt-glass-border);
+    box-shadow: var(--kt-glass-shadow);
+    backdrop-filter: blur(22px);
   }
 
   .card-elevated {
-    @apply rounded-2xl border border-divider bg-surface-elevated shadow-sm;
+    background: var(--kt-surface-elevated);
+  }
+
+  .debt-card-receive {
+    background: color-mix(in srgb, var(--kt-money) 16%, white);
+    border-color: color-mix(in srgb, var(--kt-money) 38%, white);
+  }
+
+  .debt-card-pay {
+    background: color-mix(in srgb, var(--kt-danger) 14%, white);
+    border-color: color-mix(in srgb, var(--kt-danger) 34%, white);
   }
 
   .btn-primary {
-    @apply rounded-full bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60;
+    @apply rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-secondary {
-    @apply rounded-full border border-accent px-4 py-2 text-sm font-medium text-accent transition hover:bg-surface-elevated disabled:opacity-60;
+    @apply rounded-full border border-emerald/25 bg-white/50 px-4 py-2 text-sm font-medium text-medium backdrop-blur-md transition hover:bg-white/80 disabled:opacity-60;
   }
 
   .btn-ghost {
-    @apply rounded-lg border border-divider px-4 py-2 text-sm font-medium text-medium transition hover:bg-surface-elevated;
+    @apply rounded-full border border-white/60 bg-white/30 px-4 py-2 text-sm font-medium text-medium backdrop-blur-md transition hover:bg-white/70;
   }
 
   .input-field {
-    @apply mt-1 w-full rounded-xl border border-divider bg-surface px-3 py-2 text-high outline-none focus:border-emerald-light focus:ring-2 focus:ring-emerald-light/25 disabled:opacity-60;
+    @apply mt-1 w-full rounded-2xl border border-emerald/15 bg-white/70 px-3 py-2.5 text-high outline-none backdrop-blur-md focus:border-emerald-light focus:ring-2 focus:ring-emerald-light/25 disabled:opacity-60;
   }
 
   .input-readonly {
-    @apply mt-1 rounded-xl border border-divider bg-surface-elevated px-3 py-2 text-sm text-medium;
+    @apply mt-1 rounded-2xl border border-emerald/10 bg-white/40 px-3 py-2.5 text-sm text-medium;
   }
 
   .field-label {
@@ -115,36 +114,32 @@
 
   .alert-error {
     @apply rounded-2xl border px-4 py-3 text-sm;
-    border-color: color-mix(in srgb, var(--sw-danger) 30%, transparent);
-    background: var(--sw-danger-bg);
-    color: var(--sw-danger);
+    border-color: color-mix(in srgb, var(--kt-danger) 25%, transparent);
+    background: var(--kt-danger-bg);
+    color: var(--kt-danger);
   }
 
   .alert-success {
     @apply rounded-2xl border px-4 py-3 text-sm;
-    border-color: color-mix(in srgb, var(--sw-success) 30%, transparent);
-    background: var(--sw-success-bg);
-    color: var(--sw-success);
+    border-color: color-mix(in srgb, var(--kt-success) 25%, transparent);
+    background: var(--kt-success-bg);
+    color: var(--kt-success);
   }
 
   .link-accent {
-    @apply text-sm font-medium text-accent transition hover:opacity-80;
+    @apply text-sm font-medium text-brand transition hover:text-brand-hover;
   }
 
   .nav-link {
-    @apply rounded-lg px-3 py-1.5 text-sm font-medium text-low transition hover:bg-surface-elevated hover:text-high;
+    @apply rounded-full px-3 py-1.5 text-sm font-medium text-low transition hover:bg-white/70 hover:text-high;
   }
 
   .nav-link-active {
-    @apply rounded-lg bg-emerald/15 px-3 py-1.5 text-sm font-medium text-emerald-light;
+    @apply rounded-full bg-emerald/15 px-3 py-1.5 text-sm font-semibold text-emerald-deep;
   }
 
   .hero-banner {
-    background: linear-gradient(
-      135deg,
-      var(--sw-header-gradient-from),
-      var(--sw-header-gradient-to)
-    );
+    background: linear-gradient(135deg, #16a34a, #14532d);
     color: #ffffff;
   }
 
@@ -153,7 +148,7 @@
   }
 
   .hero-banner-subtitle {
-    @apply mt-1 text-sm text-white/75;
+    @apply mt-1 text-sm text-white/80;
   }
 
   .hero-banner .btn-secondary {
@@ -164,24 +159,46 @@
     @apply flex items-center justify-center rounded-full bg-white font-semibold text-emerald-deep shadow-md;
   }
 
-  .badge-accent {
-    @apply inline-flex rounded-lg bg-emerald/15 px-2 py-0.5 text-xs font-medium text-emerald-light;
+  .skeleton {
+    @apply relative block overflow-hidden rounded-2xl bg-emerald/10;
   }
 
-  .skeleton {
-    @apply animate-pulse rounded-xl border border-divider bg-surface-elevated;
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.85),
+      transparent
+    );
+    animation: skeleton-shimmer 1.35s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton::after {
+      animation: none;
+    }
   }
 
   .table-shell {
-    @apply overflow-hidden rounded-2xl border border-divider bg-surface shadow-sm;
+    @apply overflow-hidden rounded-3xl border border-white/70 bg-white/70 shadow-sm backdrop-blur-xl;
   }
 
   .table-head {
-    @apply bg-surface-elevated text-xs font-semibold tracking-wide text-low uppercase;
+    @apply bg-emerald/8 text-xs font-semibold tracking-wide text-low uppercase;
   }
 
   .table-row {
-    @apply transition hover:bg-surface-elevated/80;
+    @apply transition hover:bg-white/70;
   }
 
   .table-cell {
@@ -189,372 +206,55 @@
   }
 
   .modal-overlay {
-    @apply fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    overflow-y: auto;
+    background: color-mix(in srgb, var(--kt-money-deep) 18%, transparent);
+    padding: 1rem;
+    backdrop-filter: blur(8px);
   }
 
   .modal-panel {
-    @apply w-full max-w-md rounded-2xl border border-divider bg-surface p-6 shadow-xl;
+    @apply m-auto w-full max-w-md rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur-xl;
   }
 
   .btn-danger {
-    @apply rounded-lg border px-3 py-1.5 text-xs font-medium transition;
-    border-color: color-mix(in srgb, var(--sw-danger) 35%, transparent);
-    color: var(--sw-danger);
+    @apply rounded-full border px-3 py-1.5 text-xs font-medium transition;
+    border-color: color-mix(in srgb, var(--kt-danger) 35%, transparent);
+    color: var(--kt-danger);
   }
 
   .btn-danger:hover {
-    background: var(--sw-danger-bg);
+    background: var(--kt-danger-bg);
   }
 
   .type-badge-admin {
-    @apply inline-flex rounded-lg px-2.5 py-0.5 text-xs font-medium;
-    background: rgba(58, 126, 100, 0.2);
-    color: var(--sw-emerald-light);
+    @apply inline-flex rounded-full bg-emerald/15 px-2.5 py-0.5 text-xs font-medium text-emerald-deep;
   }
 
   .type-badge-user {
-    @apply inline-flex rounded-lg px-2.5 py-0.5 text-xs font-medium;
-    background: rgba(100, 149, 237, 0.18);
-    color: #7eb8e8;
+    @apply inline-flex rounded-full bg-white/80 px-2.5 py-0.5 text-xs font-medium text-medium;
   }
 
-  :root .type-badge-user {
-    color: #3b6ea5;
-    background: rgba(59, 110, 165, 0.12);
+  .status-open {
+    @apply bg-emerald/12 text-emerald-deep;
   }
 
-  .sheet-card {
-    @apply relative min-h-[6.5rem] cursor-pointer overflow-hidden p-0 transition-shadow duration-300;
+  .status-requested {
+    @apply bg-amber-100 text-amber-800;
   }
 
-  .sheet-card-front {
-    @apply p-5 transition-all duration-300 ease-out;
+  .status-closed {
+    @apply bg-slate-100 text-slate-500;
   }
 
-  .sheet-card-split {
-    @apply pointer-events-none absolute inset-0 flex opacity-0;
+  .filter-chip {
+    @apply rounded-full px-3 py-1.5 text-sm font-medium text-low transition hover:bg-white/80;
   }
 
-  .sheet-card-half {
-    @apply flex flex-1 flex-col items-center justify-center gap-2 text-white transition-transform duration-300 ease-out;
-  }
-
-  .sheet-card-share {
-    @apply -translate-x-full;
-    background: linear-gradient(
-      135deg,
-      var(--sw-emerald-mid),
-      var(--sw-emerald-deep)
-    );
-  }
-
-  .sheet-card-edit {
-    @apply translate-x-full;
-    transition-delay: 40ms;
-    background: linear-gradient(
-      135deg,
-      var(--sw-terracotta-muted),
-      var(--sw-terracotta)
-    );
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .sheet-card:hover {
-      @apply shadow-md;
-    }
-
-    .sheet-card:hover .sheet-card-front {
-      @apply scale-[0.97] opacity-0;
-    }
-
-    .sheet-card:hover .sheet-card-split {
-      @apply pointer-events-auto opacity-100;
-    }
-
-    .sheet-card:hover .sheet-card-share,
-    .sheet-card:hover .sheet-card-edit {
-      @apply translate-x-0;
-    }
-  }
-
-  .sheet-card-expanded .sheet-card-front {
-    @apply scale-[0.97] opacity-0;
-  }
-
-  .sheet-card-expanded .sheet-card-split {
-    @apply pointer-events-auto opacity-100;
-  }
-
-  .sheet-card-expanded .sheet-card-share,
-  .sheet-card-expanded .sheet-card-edit {
-    @apply translate-x-0;
-  }
-
-  .sheet-card-half:hover {
-    filter: brightness(1.06);
-  }
-
-  .sheet-card-half-full {
-    @apply flex-[1_1_100%] translate-x-0;
-  }
-
-  .expense-hero {
-    background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--sw-emerald-mid) 8%, var(--sw-surface)),
-      var(--sw-surface)
-    );
-  }
-
-  .expense-balance-card {
-    @apply rounded-2xl border border-divider bg-surface p-5 shadow-sm transition hover:shadow-md;
-  }
-
-  .expense-stat-box {
-    @apply rounded-xl bg-surface-elevated px-3 py-2;
-  }
-
-  .expense-stat-label {
-    @apply text-xs font-medium tracking-wide text-low uppercase;
-  }
-
-  .expense-stat-value {
-    @apply mt-1 text-base font-semibold text-high;
-  }
-
-  .expense-pending-pill {
-    @apply rounded-full px-2.5 py-1 text-xs font-semibold;
-  }
-
-  .expense-pending-pill--label {
-    @apply max-w-[9.5rem] rounded-xl px-2.5 py-1.5 text-right leading-tight;
-  }
-
-  .expense-pending-credit {
-    background: var(--sw-success-bg);
-    color: var(--sw-success);
-  }
-
-  .expense-pending-debit {
-    background: var(--sw-danger-bg);
-    color: var(--sw-danger);
-  }
-
-  .expense-pending-zero {
-    @apply bg-surface-elevated text-medium;
-  }
-
-  .expense-table-shell {
-    @apply rounded-2xl border border-divider bg-surface shadow-sm;
-  }
-
-  .expense-table-scroll {
-    @apply overflow-x-auto;
-  }
-
-  .expense-table {
-    @apply border-collapse text-sm;
-  }
-
-  .expense-table th,
-  .expense-table td {
-    @apply border border-divider px-3 py-2.5 text-center whitespace-nowrap;
-  }
-
-  .expense-row-header th {
-    @apply bg-[#d9d9d9] text-xs font-bold tracking-wide text-high uppercase;
-  }
-
-  .dark .expense-row-header th {
-    background: var(--sw-emerald-mid);
-    color: var(--sw-text-high);
-    border-color: var(--sw-divider);
-  }
-
-  .expense-row-item td {
-    background: #fff8e1;
-  }
-
-  :root .expense-row-item td {
-    background: #fff8e1;
-  }
-
-  .dark .expense-row-item td {
-    background: rgba(201, 168, 76, 0.08);
-    color: var(--sw-text-high);
-  }
-
-  .expense-row-total td {
-    background: #cfe2f3;
-    @apply font-bold;
-  }
-
-  .dark .expense-row-total td {
-    background: rgba(58, 126, 100, 0.14);
-    color: var(--sw-text-high);
-  }
-
-  .expense-row-given td {
-    @apply bg-surface-elevated font-bold;
-  }
-
-  .expense-row-pending td {
-    @apply font-bold;
-  }
-
-  .expense-row-status td {
-    @apply bg-surface-elevated;
-  }
-
-  .payment-status-badge {
-    @apply inline-flex rounded-full px-2.5 py-1 text-xs font-semibold;
-  }
-
-  .payment-status-not-paid {
-    @apply bg-surface text-low;
-    border: 1px solid var(--sw-divider);
-  }
-
-  .payment-status-requested {
-    background: #fff4e5;
-    color: #9a5b00;
-  }
-
-  .payment-status-paid {
-    background: var(--sw-success-bg);
-    color: var(--sw-success);
-  }
-
-  .payment-action-btn {
-    @apply rounded-full border border-divider bg-surface px-2.5 py-1 text-xs font-medium text-medium transition hover:bg-surface-elevated disabled:opacity-60;
-  }
-
-  .payment-action-btn-confirm {
-    border-color: color-mix(in srgb, var(--sw-success) 35%, transparent);
-    color: var(--sw-success);
-  }
-
-  .payment-action-btn-confirm:hover {
-    background: var(--sw-success-bg);
-  }
-
-  .expense-cell-input {
-    @apply w-full min-w-16 rounded-lg border border-divider bg-surface px-2 py-2 text-center text-sm leading-normal text-high outline-none focus:border-emerald-light focus:ring-2 focus:ring-emerald-light/20;
-  }
-
-  .expense-cell-input-left {
-    @apply block w-full min-w-32 rounded-lg border border-divider bg-surface px-2 py-2 text-left text-sm leading-normal text-high outline-none focus:border-emerald-light focus:ring-2 focus:ring-emerald-light/20;
-  }
-
-  .expense-cell-textarea {
-    @apply block w-full min-h-9 min-w-40 resize-none overflow-hidden rounded-lg border border-divider bg-surface px-2 py-2 text-left text-sm leading-normal text-high outline-none focus:border-emerald-light focus:ring-2 focus:ring-emerald-light/20;
-  }
-
-  .expense-table-cell-interactive {
-    @apply align-top whitespace-normal overflow-visible;
-  }
-
-  .expense-action-select {
-    @apply rounded-full border border-divider bg-surface px-3 py-1.5 text-sm font-medium text-medium outline-none transition focus:border-emerald-light;
-  }
-
-  .expense-remove-btn {
-    @apply flex h-7 w-7 items-center justify-center rounded-full border border-divider text-lg leading-none text-low transition hover:border-danger hover:bg-danger/10 hover:text-danger;
-  }
-
-  .expense-save-bar {
-    @apply fixed inset-x-0 bottom-0 z-40 border-t border-divider bg-surface/95 shadow-lg backdrop-blur;
-  }
-
-  .expense-animate-item {
-    transition:
-      opacity 0.32s ease,
-      transform 0.32s ease,
-      max-height 0.32s ease,
-      margin 0.32s ease,
-      padding 0.32s ease;
-  }
-
-  .expense-animate-in {
-    animation: expense-slide-in 0.32s ease forwards;
-  }
-
-  .expense-animate-out {
-    animation: expense-slide-out 0.32s ease forwards;
-    pointer-events: none;
-  }
-
-  @keyframes expense-slide-in {
-    from {
-      opacity: 0;
-      transform: translateY(8px) scale(0.98);
-    }
-
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
-  }
-
-  @keyframes expense-slide-out {
-    from {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-      max-height: 240px;
-    }
-
-    to {
-      opacity: 0;
-      transform: translateY(-8px) scale(0.96);
-      max-height: 0;
-    }
-  }
-
-  .share-page {
-    --sw-app-bg: #f0f4f2;
-    --sw-surface: #ffffff;
-    --sw-surface-elevated: #f7faf8;
-    --sw-text-high: #1d4133;
-    --sw-text-medium: #2a5f4b;
-    --sw-text-low: #6b7f76;
-    --sw-divider: #d8e4de;
-    --sw-danger: #c94b3a;
-    --sw-danger-bg: #fdeeed;
-    --sw-success: #2a5f4b;
-    --sw-success-bg: #e8f3ed;
-    --sw-gold: #c9a84c;
-    color: var(--sw-text-high);
-    background: var(--sw-app-bg);
-  }
-
-  .share-page-header {
-    box-shadow: 0 1px 0 color-mix(in srgb, var(--sw-divider) 80%, transparent);
-  }
-
-  .share-page-hero {
-    background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--sw-emerald-mid) 7%, #ffffff),
-      #ffffff
-    );
-    border-color: color-mix(in srgb, var(--sw-emerald-mid) 18%, var(--sw-divider));
-  }
-
-  .dark .share-page .expense-row-header th {
-    background: #d9d9d9;
-    color: #1d4133;
-  }
-
-  .dark .share-page .expense-row-item td {
-    background: #fff8e1;
-  }
-
-  .dark .share-page .expense-row-total td {
-    background: #cfe2f3;
-  }
-
-  .dark .share-page .type-badge-user {
-    color: #3b6ea5;
-    background: rgba(59, 110, 165, 0.12);
+  .filter-chip-active {
+    @apply rounded-full bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm;
   }
 }

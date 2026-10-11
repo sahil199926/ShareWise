@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppHeader from '../app-header'
 import Pagination from '../pagination'
+import { PeopleTableSkeleton } from '../skeleton'
 import UserFormModal from '../user-form-modal'
 import UsersTable from '../users-table'
 import { SHEETS_PAGE_SIZE } from '../../constants/pagination'
@@ -12,7 +13,7 @@ import {
   updateUser,
 } from '../../services/users.service'
 import type { MasterUser, MasterUserInput } from '../../types/master-user'
-import type { PaginationMeta } from '../../types/sheet'
+import type { PaginationMeta } from '../../types/pagination'
 import { useAuth } from '../../hooks/use-auth'
 import { isSameUserEmail } from '../../lib/auth-utils'
 
@@ -93,7 +94,7 @@ const Master = () => {
         setCurrentPage(1)
         reloadUsers(1)
       } else if (editingUser) {
-        await updateUser(user.email, editingUser.rowId, data)
+        await updateUser(user.email, editingUser.id, data)
         reloadUsers(currentPage)
       }
     } finally {
@@ -116,7 +117,7 @@ const Master = () => {
     setIsLoading(true)
 
     try {
-      await deleteUser(user.email, targetUser.rowId)
+      await deleteUser(user.email, targetUser.id)
       reloadUsers(currentPage)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete user')
@@ -127,8 +128,8 @@ const Master = () => {
   return (
     <div className="page-shell">
       <AppHeader
-        title="MASTER Sheet"
-        subtitle="USERS · EMAIL · PASSWORD · TYPE · Age · Score"
+        title="People"
+        subtitle="People stored in Karja Tracker"
         onLogout={handleLogout}
         actions={
           <button
@@ -145,16 +146,12 @@ const Master = () => {
         {error ? <div className="alert-error mb-6">{error}</div> : null}
 
         {isLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="skeleton h-12" />
-            ))}
-          </div>
+          <PeopleTableSkeleton />
         ) : users.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-divider bg-surface px-6 py-16 text-center">
             <p className="text-sm font-medium text-medium">No users found</p>
             <p className="mt-1 text-sm text-low">
-              Add your first user to the MASTER sheet.
+              Add the first person who can sign in and hold karja.
             </p>
             <button
               type="button"
@@ -190,7 +187,7 @@ const Master = () => {
       </main>
 
       <UserFormModal
-        key={`${modalMode}-${editingUser?.rowId ?? 'new'}`}
+        key={`${modalMode}-${editingUser?.id ?? 'new'}`}
         isOpen={isModalOpen}
         mode={modalMode}
         initialData={editingUser}

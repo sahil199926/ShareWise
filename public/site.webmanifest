@@ -1,15 +1,15 @@
 {
-  "name": "ShareWise",
-  "short_name": "ShareWise",
-  "description": "Track and manage shared expenses with your team.",
+  "name": "Karja Tracker",
+  "short_name": "Karja",
+  "description": "Track who owes whom, request closures, and keep every karja in one place.",
   "icons": [
     {
-      "src": "/shereWise.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     }
   ],
-  "theme_color": "#1a2e24",
-  "background_color": "#0f1412",
+  "theme_color": "#16a34a",
+  "background_color": "#e8f6ee",
   "display": "standalone"
 }

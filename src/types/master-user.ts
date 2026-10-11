@@ -1,8 +1,7 @@
 export type MasterUser = {
-  rowId: number
+  id: string
   name: string
   email: string
-  password: string
   type: string
   age: number | null
   score: number | null

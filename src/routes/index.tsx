@@ -5,17 +5,25 @@ import ProtectedRoute from '../components/protected-route'
 import LazyRoute from './lazy-route'
 import {
   DashboardPage,
-  EditSheetPage,
+  DebtOverviewPage,
   LoginPage,
   MasterPage,
   ProfilePage,
-  ShareSheetPage,
+  PublicDebtsPage,
 } from './lazy-pages'
 
 export const routes: RouteObject[] = [
   {
     path: '/',
     element: <Navigate to="/dashboard" replace />,
+  },
+  {
+    path: '/share/:email',
+    element: (
+      <LazyRoute>
+        <PublicDebtsPage />
+      </LazyRoute>
+    ),
   },
   {
     path: '/login',
@@ -31,6 +39,16 @@ export const routes: RouteObject[] = [
       <ProtectedRoute>
         <LazyRoute>
           <DashboardPage />
+        </LazyRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/debt-overview',
+    element: (
+      <ProtectedRoute>
+        <LazyRoute>
+          <DebtOverviewPage />
         </LazyRoute>
       </ProtectedRoute>
     ),
@@ -55,24 +73,6 @@ export const routes: RouteObject[] = [
           </LazyRoute>
         </AdminRoute>
       </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/edit-sheet/:id',
-    element: (
-      <ProtectedRoute>
-        <LazyRoute>
-          <EditSheetPage />
-        </LazyRoute>
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: '/share-sheet/:id',
-    element: (
-      <LazyRoute>
-        <ShareSheetPage />
-      </LazyRoute>
     ),
   },
 ]

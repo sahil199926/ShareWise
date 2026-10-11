@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import AppHeader from '../app-header'
+import { ProfileFieldsSkeleton, Skeleton } from '../skeleton'
 import { useAuth } from '../../hooks/use-auth'
-import { useTheme } from '../../hooks/use-theme'
 import { getProfile, updateProfile } from '../../services/profile.service'
 import type { User } from '../../types/auth'
 import type { ProfileUpdateInput } from '../../types/profile'
@@ -52,7 +52,6 @@ const ProfileField = ({ label, value, hint }: ProfileFieldProps) => {
 
 const Profile = () => {
   const { user, updateUser, logout } = useAuth()
-  const { theme, setTheme } = useTheme()
   const navigate = useNavigate()
   const [profile, setProfile] = useState<User | null>(user)
   const [form, setForm] = useState<ProfileUpdateInput>(
@@ -163,10 +162,17 @@ const Profile = () => {
                   {initials}
                 </span>
                 <div className="text-center sm:text-left">
-                  <h2 className="hero-banner-title">
-                    {isLoading ? 'Loading...' : displayUser.name}
-                  </h2>
-                  <p className="hero-banner-subtitle">{user.email}</p>
+                  {isLoading ? (
+                    <>
+                      <Skeleton className="mx-auto h-7 w-40 bg-white/30 sm:mx-0" />
+                      <Skeleton className="mx-auto mt-2 h-4 w-48 bg-white/20 sm:mx-0" />
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="hero-banner-title">{displayUser.name}</h2>
+                      <p className="hero-banner-subtitle">{user.email}</p>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -186,11 +192,7 @@ const Profile = () => {
             <p className="section-label py-4">Account details</p>
 
             {isLoading ? (
-              <div className="space-y-4 pb-6">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <div key={index} className="skeleton h-10" />
-                ))}
-              </div>
+              <ProfileFieldsSkeleton />
             ) : isEditing ? (
               <form className="space-y-5 pb-6" onSubmit={handleSubmit}>
                 <div>
@@ -279,36 +281,10 @@ const Profile = () => {
             )}
           </div>
 
-          <div className="border-t border-divider px-6 py-6 sm:px-8">
-            <p className="section-label">Appearance</p>
-            <div className="mt-4 flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-medium text-high">Dark mode</p>
-                <p className="text-xs text-low">
-                  ShareWise emerald & gold theme
-                </p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={theme === 'dark'}
-                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                className={`relative h-7 w-12 rounded-full transition ${
-                  theme === 'dark' ? 'bg-emerald-light' : 'bg-divider'
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-surface shadow transition ${
-                    theme === 'dark' ? 'translate-x-5' : 'translate-x-0'
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
         </div>
 
         <p className="mt-4 text-center text-xs text-low">
-          Data synced from MASTER sheet
+          People and debts both live in Karja Tracker.
         </p>
       </main>
     </div>
