@@ -114,9 +114,13 @@ const Profile = () => {
 
     try {
       const updated = await updateProfile(user.email, form)
-      setProfile(updated)
-      setForm(toFormState(updated))
-      updateUser(updated)
+      const nextUser = {
+        ...updated,
+        avatarUrl: updated.avatarUrl || user.avatarUrl,
+      }
+      setProfile(nextUser)
+      setForm(toFormState(nextUser))
+      updateUser(nextUser)
       setSuccess('Profile updated successfully')
       setIsEditing(false)
     } catch (err) {
@@ -274,7 +278,6 @@ const Profile = () => {
               </div>
             )}
           </div>
-
         </div>
 
         <p className="mt-4 text-center text-xs text-low">

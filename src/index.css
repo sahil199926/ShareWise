@@ -48,9 +48,21 @@
   body {
     @apply min-h-screen text-high antialiased;
     background:
-      radial-gradient(circle at 12% -10%, rgba(74, 222, 128, 0.14), transparent 36%),
-      radial-gradient(circle at 92% 8%, rgba(34, 197, 94, 0.08), transparent 32%),
-      radial-gradient(circle at 50% 120%, rgba(187, 247, 208, 0.22), transparent 42%),
+      radial-gradient(
+        circle at 12% -10%,
+        rgba(74, 222, 128, 0.14),
+        transparent 36%
+      ),
+      radial-gradient(
+        circle at 92% 8%,
+        rgba(34, 197, 94, 0.08),
+        transparent 32%
+      ),
+      radial-gradient(
+        circle at 50% 120%,
+        rgba(187, 247, 208, 0.22),
+        transparent 42%
+      ),
       var(--kt-app-bg);
   }
 }
@@ -84,16 +96,68 @@
     border-color: color-mix(in srgb, var(--kt-danger) 34%, white);
   }
 
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .btn-danger {
+    position: relative;
+    overflow: hidden;
+    transition:
+      transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.22s ease,
+      background-color 0.22s ease,
+      border-color 0.22s ease;
+  }
+
+  .btn-primary::after,
+  .btn-secondary::after,
+  .btn-ghost::after,
+  .btn-danger::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      105deg,
+      transparent 32%,
+      rgba(255, 255, 255, 0.55) 50%,
+      transparent 68%
+    );
+    transform: translateX(-130%);
+    pointer-events: none;
+  }
+
+  .btn-primary:hover:not(:disabled),
+  .btn-secondary:hover:not(:disabled),
+  .btn-ghost:hover:not(:disabled),
+  .btn-danger:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -14px rgba(21, 128, 61, 0.65);
+  }
+
+  .btn-primary:hover:not(:disabled)::after,
+  .btn-secondary:hover:not(:disabled)::after,
+  .btn-ghost:hover:not(:disabled)::after,
+  .btn-danger:hover:not(:disabled)::after {
+    animation: btn-shine 0.65s ease;
+  }
+
+  .btn-primary:active:not(:disabled),
+  .btn-secondary:active:not(:disabled),
+  .btn-ghost:active:not(:disabled),
+  .btn-danger:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+  }
+
   .btn-primary {
-    @apply rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60;
+    @apply rounded-full bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-secondary {
-    @apply rounded-full border border-emerald/25 bg-white/50 px-4 py-2 text-sm font-medium text-medium backdrop-blur-md transition hover:bg-white/80 disabled:opacity-60;
+    @apply rounded-full border border-emerald/25 bg-white/50 px-4 py-2 text-sm font-medium text-medium backdrop-blur-md hover:bg-white/80 disabled:opacity-60;
   }
 
   .btn-ghost {
-    @apply rounded-full border border-white/60 bg-white/30 px-4 py-2 text-sm font-medium text-medium backdrop-blur-md transition hover:bg-white/70;
+    @apply rounded-full border border-white/60 bg-white/30 px-4 py-2 text-sm font-medium text-medium backdrop-blur-md hover:bg-white/70;
   }
 
   .input-field {
@@ -155,8 +219,13 @@
     @apply border-white/35 bg-white/10 text-white hover:border-white/55 hover:bg-white/15;
   }
 
-  .avatar-ring {
-    @apply flex items-center justify-center rounded-full bg-white font-semibold text-emerald-deep shadow-md;
+  .avatar-ring,
+  .avatar-photo {
+    @apply inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-white font-semibold text-emerald-deep shadow-md;
+  }
+
+  .avatar-photo {
+    @apply object-cover;
   }
 
   .skeleton {
@@ -221,7 +290,7 @@
   }
 
   .btn-danger {
-    @apply rounded-full border px-3 py-1.5 text-xs font-medium transition;
+    @apply rounded-full border px-3 py-1.5 text-xs font-medium;
     border-color: color-mix(in srgb, var(--kt-danger) 35%, transparent);
     color: var(--kt-danger);
   }
@@ -256,5 +325,42 @@
 
   .filter-chip-active {
     @apply rounded-full bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm;
+  }
+}
+
+@keyframes btn-shine {
+  from {
+    transform: translateX(-130%);
+  }
+
+  to {
+    transform: translateX(130%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .btn-danger {
+    transition: none;
+  }
+
+  .btn-primary:hover:not(:disabled),
+  .btn-secondary:hover:not(:disabled),
+  .btn-ghost:hover:not(:disabled),
+  .btn-danger:hover:not(:disabled),
+  .btn-primary:active:not(:disabled),
+  .btn-secondary:active:not(:disabled),
+  .btn-ghost:active:not(:disabled),
+  .btn-danger:active:not(:disabled) {
+    transform: none;
+  }
+
+  .btn-primary:hover:not(:disabled)::after,
+  .btn-secondary:hover:not(:disabled)::after,
+  .btn-ghost:hover:not(:disabled)::after,
+  .btn-danger:hover:not(:disabled)::after {
+    animation: none;
   }
 }

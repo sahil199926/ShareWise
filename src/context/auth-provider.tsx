@@ -6,11 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import {
-  AUTH_STORAGE_KEY,
-  getStoredAuth,
-  setStoredAuth,
-} from '../lib/storage'
+import { AUTH_STORAGE_KEY, getStoredAuth, setStoredAuth } from '../lib/storage'
 import { getProfile } from '../services/profile.service'
 import type { User } from '../types/auth'
 import { AuthContext } from './auth-context'
@@ -37,8 +33,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .then((freshUser) => {
         if (cancelled || generation !== sessionRef.current) return
 
-        setUser(freshUser)
-        setStoredAuth(freshUser)
+        setUser((current) => {
+          const nextUser = {
+            ...freshUser,
+            avatarUrl: freshUser.avatarUrl || current?.avatarUrl || null,
+          }
+          setStoredAuth(nextUser)
+          return nextUser
+        })
       })
       .catch(() => {
         // Keep the cached session if the profile refresh fails.

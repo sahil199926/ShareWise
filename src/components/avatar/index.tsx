@@ -26,9 +26,7 @@ const Avatar = ({ name, avatarUrl, className = '' }: AvatarProps) => {
     )
   }
 
-  return (
-    <span className={`avatar-ring ${className}`}>{getInitials(name)}</span>
-  )
+  return <span className={`avatar-ring ${className}`}>{getInitials(name)}</span>
 }
 
 export default Avatar
