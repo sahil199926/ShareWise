@@ -7,10 +7,14 @@ import {
   isDebtDebtor,
   REOPEN_WINDOW_MS,
 } from '../../lib/debt-permissions'
+import { useAuth } from '../../hooks/use-auth'
+import { avatarForEmail } from '../../services/users.service'
+import Avatar from '../avatar'
 import DebtStatusBadge from '../debt-status-badge'
 
 type DebtCardProps = {
   debt: Debt
+  faces?: Record<string, string | null>
   currentUserEmail?: string
   isAdmin?: boolean
   actionLoading?: boolean
@@ -23,6 +27,7 @@ type DebtCardProps = {
 
 const DebtCard = ({
   debt,
+  faces = {},
   currentUserEmail,
   isAdmin = false,
   actionLoading = false,
@@ -32,6 +37,7 @@ const DebtCard = ({
   onMarkClosed,
   onReopen,
 }: DebtCardProps) => {
+  const { user } = useAuth()
   const email = currentUserEmail?.trim().toLowerCase() ?? ''
   const isDebtor = Boolean(email) && isDebtDebtor(debt, email)
   const isCreditor = Boolean(email) && isDebtCreditor(debt, email)
@@ -80,10 +86,24 @@ const DebtCard = ({
           <p className={`text-2xl font-bold tracking-tight ${amountClass}`}>
             {formatRupee(debt.amount)}
           </p>
-          <p className="mt-2 text-sm font-medium text-high">
-            {debt.debtorName}{' '}
-            <span className="font-normal text-low">will give</span>{' '}
-            {debt.creditorName}
+          <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm font-medium text-high">
+            <span className="inline-flex min-w-0 items-center gap-1.5">
+              <Avatar
+                name={debt.debtorName}
+                avatarUrl={avatarForEmail(debt.debtorEmail, faces, user)}
+                className="h-6 w-6 text-[10px]"
+              />
+              <span className="truncate">{debt.debtorName}</span>
+            </span>
+            <span className="font-normal text-low">will give</span>
+            <span className="inline-flex min-w-0 items-center gap-1.5">
+              <Avatar
+                name={debt.creditorName}
+                avatarUrl={avatarForEmail(debt.creditorEmail, faces, user)}
+                className="h-6 w-6 text-[10px]"
+              />
+              <span className="truncate">{debt.creditorName}</span>
+            </span>
           </p>
         </div>
         <DebtStatusBadge status={debt.status} />

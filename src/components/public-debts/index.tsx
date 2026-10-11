@@ -11,6 +11,7 @@ import {
   getOpenDebtTotals,
 } from '../../lib/debt-utils'
 import { setShareMeta, shareCopy } from '../../lib/share-copy'
+import { usePeopleFaces } from '../../hooks/use-people-faces'
 import { listDebts } from '../../services/debts.service'
 import { DEBT_STATUS, type Debt } from '../../types/debt'
 
@@ -31,6 +32,9 @@ const PublicDebts = () => {
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const [copyError, setCopyError] = useState(false)
+  const faces = usePeopleFaces(
+    debts.flatMap((debt) => [debt.debtorEmail, debt.creditorEmail]),
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -188,7 +192,12 @@ const PublicDebts = () => {
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {openDebts.map((debt) => (
-                <DebtCard key={debt.id} debt={debt} currentUserEmail={email} />
+                <DebtCard
+                  key={debt.id}
+                  debt={debt}
+                  faces={faces}
+                  currentUserEmail={email}
+                />
               ))}
             </div>
           )}

@@ -10,6 +10,7 @@ import SelectField from '../select-field'
 import { DebtGridSkeleton } from '../skeleton'
 import { DEBT_PAGE_SIZE } from '../../constants/pagination'
 import { useAuth } from '../../hooks/use-auth'
+import { usePeopleFaces } from '../../hooks/use-people-faces'
 import { isSuperAdmin } from '../../lib/auth-utils'
 import { copyTextToClipboard } from '../../lib/clipboard'
 import {
@@ -72,6 +73,9 @@ const DebtOverview = () => {
   const [copied, setCopied] = useState(false)
   const [shareText, setShareText] = useState('')
   const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null)
+  const faces = usePeopleFaces(
+    debts.flatMap((debt) => [debt.debtorEmail, debt.creditorEmail]),
+  )
 
   const loadDebts = useCallback(async () => {
     const nextDebts = await listDebts()
@@ -359,6 +363,7 @@ const DebtOverview = () => {
                 <DebtCard
                   key={debt.id}
                   debt={debt}
+                  faces={faces}
                   currentUserEmail={user?.email}
                   isAdmin={isAdmin}
                   actionLoading={actionLoading}

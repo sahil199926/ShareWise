@@ -10,6 +10,7 @@ import {
   StatCardSkeleton,
 } from '../skeleton'
 import { useAuth } from '../../hooks/use-auth'
+import { usePeopleFaces } from '../../hooks/use-people-faces'
 import { isSuperAdmin } from '../../lib/auth-utils'
 import {
   debtInvolvesEmail,
@@ -41,6 +42,9 @@ const Dashboard = () => {
   const [subjectEmail, setSubjectEmail] = useState(user?.email ?? '')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const faces = usePeopleFaces(
+    debts.flatMap((debt) => [debt.debtorEmail, debt.creditorEmail]),
+  )
 
   useEffect(() => {
     if (!user?.email) return
@@ -275,6 +279,7 @@ const Dashboard = () => {
                 <DebtCard
                   key={debt.id}
                   debt={debt}
+                  faces={faces}
                   currentUserEmail={user?.email}
                 />
               ))}
