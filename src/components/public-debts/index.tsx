@@ -90,9 +90,14 @@ const PublicDebts = () => {
       <header className="border-b border-white/50 bg-white/45 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <Logo size="md" />
-          <Link to="/login" className="btn-primary">
-            Sign in
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/leaderboard" className="btn-ghost">
+              Leaderboard
+            </Link>
+            <Link to="/login" className="btn-primary">
+              Sign in
+            </Link>
+          </div>
         </div>
       </header>
 

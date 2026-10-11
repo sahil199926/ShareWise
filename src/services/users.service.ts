@@ -102,6 +102,51 @@ export const deleteUser = async (requesterEmail: string, id: string) => {
   }
 }
 
+export const avatarForEmail = (
+  email: string,
+  faces: Record<string, string | null>,
+  session?: { email: string; avatarUrl?: string | null } | null,
+) => {
+  const key = email.trim().toLowerCase()
+  const sessionPhoto =
+    session?.email.trim().toLowerCase() === key &&
+    session.avatarUrl?.startsWith('https://')
+      ? session.avatarUrl
+      : null
+
+  return sessionPhoto || faces[key] || null
+}
+
+export const listLeaderboardFaces = async (emails: string[]) => {
+  const unique = [
+    ...new Set(
+      emails.map((email) => email.trim().toLowerCase()).filter(Boolean),
+    ),
+  ]
+
+  const faces = await Promise.all(
+    unique.map(async (email) => {
+      const { data, error } = await supabase.rpc('get_profile', {
+        p_email: email,
+      })
+
+      if (error || !data || typeof data !== 'object') return null
+
+      const avatarUrl = (data as { avatarUrl?: string | null }).avatarUrl
+      return [
+        email,
+        avatarUrl?.startsWith('https://') ? avatarUrl : null,
+      ] as const
+    }),
+  )
+
+  return Object.fromEntries(
+    faces.filter((face): face is readonly [string, string | null] =>
+      Boolean(face),
+    ),
+  )
+}
+
 export const listMasterUserOptions = async (requesterEmail: string) => {
   const { data, error } = await supabase.rpc('list_user_options', {
     p_requester_email: requesterEmail,

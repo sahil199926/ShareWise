@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+
 type AvatarProps = {
   name: string
   avatarUrl?: string | null
@@ -15,13 +17,20 @@ const getInitials = (name: string) => {
 }
 
 const Avatar = ({ name, avatarUrl, className = '' }: AvatarProps) => {
-  if (avatarUrl) {
+  const [photoFailed, setPhotoFailed] = useState(false)
+
+  useEffect(() => {
+    setPhotoFailed(false)
+  }, [avatarUrl])
+
+  if (avatarUrl && !photoFailed) {
     return (
       <img
         src={avatarUrl}
         alt=""
         referrerPolicy="no-referrer"
         className={`avatar-photo ${className}`}
+        onError={() => setPhotoFailed(true)}
       />
     )
   }

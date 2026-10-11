@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import AppHeader from '../app-header'
+import DayRangeFilter from '../day-range-filter'
 import DebtCard from '../debt-card'
 import DebtFormModal from '../debt-form-modal'
+import Pagination from '../pagination'
 import SelectField from '../select-field'
 import { DebtGridSkeleton } from '../skeleton'
+import { DEBT_PAGE_SIZE } from '../../constants/pagination'
 import { useAuth } from '../../hooks/use-auth'
 import { isSuperAdmin } from '../../lib/auth-utils'
 import { copyTextToClipboard } from '../../lib/clipboard'
 import { buildDebtShareText, debtInvolvesEmail } from '../../lib/debt-utils'
+import { filterDebtsByDays, type DayRange } from '../../lib/leaderboard'
 import { mergePeople } from '../../lib/overview-stats'
 import {
   createDebt,
@@ -47,6 +51,8 @@ const DebtOverview = () => {
   const [debts, setDebts] = useState<Debt[]>([])
   const [users, setUsers] = useState<MasterUserOption[]>([])
   const [filter, setFilter] = useState<FilterKey>('open')
+  const [range, setRange] = useState<DayRange>(30)
+  const [page, setPage] = useState(1)
   const [personEmail, setPersonEmail] = useState(
     requestedPerson || signedInEmail,
   )
@@ -182,12 +188,22 @@ const DebtOverview = () => {
           user?.email ? debtInvolvesEmail(debt, user.email) : false,
         )
 
-    return scoped.filter((debt) => {
+    return filterDebtsByDays(scoped, range).filter((debt) => {
       if (!matchesFilter(debt, filter)) return false
       if (!personEmail) return true
       return debtInvolvesEmail(debt, personEmail)
     })
-  }, [debts, filter, isAdmin, personEmail, user?.email])
+  }, [debts, filter, isAdmin, personEmail, range, user?.email])
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(visibleDebts.length / DEBT_PAGE_SIZE),
+  )
+  const currentPage = Math.min(page, totalPages)
+  const pagedDebts = visibleDebts.slice(
+    (currentPage - 1) * DEBT_PAGE_SIZE,
+    currentPage * DEBT_PAGE_SIZE,
+  )
 
   return (
     <div className="page-shell">
@@ -199,6 +215,15 @@ const DebtOverview = () => {
             : 'Your debts, filtered by the other person.'
         }
         onLogout={handleLogout}
+        navAside={
+          <DayRangeFilter
+            value={range}
+            onChange={(next) => {
+              setRange(next)
+              setPage(1)
+            }}
+          />
+        }
         actions={
           isAdmin ? (
             <button
@@ -233,7 +258,10 @@ const DebtOverview = () => {
                 ariaLabel="Filter by person"
                 className="mt-0 w-full sm:w-48"
                 value={selectedPerson?.email ?? ''}
-                onChange={setPersonEmail}
+                onChange={(email) => {
+                  setPersonEmail(email)
+                  setPage(1)
+                }}
                 options={[
                   { value: '', label: 'Everyone' },
                   ...people.map((person) => ({
@@ -280,7 +308,10 @@ const DebtOverview = () => {
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setFilter(item.id)}
+                    onClick={() => {
+                      setFilter(item.id)
+                      setPage(1)
+                    }}
                     className={
                       filter === item.id ? 'filter-chip-active' : 'filter-chip'
                     }
@@ -305,7 +336,7 @@ const DebtOverview = () => {
 
           {isLoading ? (
             <DebtGridSkeleton />
-          ) : visibleDebts.length === 0 ? (
+          ) : pagedDebts.length === 0 ? (
             <div className="glass-card px-6 py-16 text-center">
               <p className="text-sm font-medium text-medium">
                 No debts in this view
@@ -318,7 +349,7 @@ const DebtOverview = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {visibleDebts.map((debt) => (
+              {pagedDebts.map((debt) => (
                 <DebtCard
                   key={debt.id}
                   debt={debt}
@@ -360,6 +391,21 @@ const DebtOverview = () => {
               ))}
             </div>
           )}
+
+          {pagedDebts.length > 0 ? (
+            <div className="mt-6">
+              <Pagination
+                itemLabel="debts"
+                pagination={{
+                  page: currentPage,
+                  pageSize: DEBT_PAGE_SIZE,
+                  total: visibleDebts.length,
+                  totalPages,
+                }}
+                onPageChange={setPage}
+              />
+            </div>
+          ) : null}
         </section>
       </main>
 

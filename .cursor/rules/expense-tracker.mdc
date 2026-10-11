@@ -18,8 +18,8 @@ alwaysApply: true
 - **Vite** + **React 19** + **TypeScript**
 - **Tailwind CSS v4** (`@import 'tailwindcss'` in `src/index.css`)
 - **React Router DOM v7** — lazy-loaded routes with `Suspense`
-- **Supabase JS** — people and debts (`SUPABASE_URL` + `SUPABASE_PUBLISHABLE_KEY` only)
-- **Firebase Auth** — Google sign-in (`FIREBASE_*`). The Google account still has to match a person in Supabase.
+- **Supabase JS** — people and debts (`VITE_SUPABASE_URL` + `VITE_SUPABASE_PUBLISHABLE_KEY` only)
+- **Firebase Auth** — Google sign-in (`VITE_FIREBASE_*`). The Google account still has to match a person in Supabase.
 - **Context API** + **localStorage** — auth state persistence
 - **ESLint** + **Prettier** — run `npm run lint` and `npm run format`
 
@@ -32,7 +32,7 @@ alwaysApply: true
 - **All debt calls** go through `src/services/debts.service.ts`.
 - **Supabase access** goes through `src/lib/supabase.ts`.
 - **Firebase access** goes through `src/lib/firebase.ts`.
-- Never import `SUPABASE_SECRET_KEY` in the browser.
+- Never import `VITE_SUPABASE_SECRET_KEY` in the browser.
 - Business logic belongs in `src/services/`, not in components.
 
 ## Debt status
@@ -48,6 +48,8 @@ alwaysApply: true
 | `/`              | Redirects to `/dashboard`                      |
 | `/login`         | Public                                         |
 | `/share/:email`  | Public open debts for one person               |
+| `/leaderboard`   | Public scoreboard. No login.                   |
+| `/leaderboard/:email` | Public detail for one person on the board. |
 | `/dashboard`     | Protected overview. Admin can view any person. |
 | `/debt-overview` | Protected debt list with a person filter       |
 | `/profile`       | Protected                                      |

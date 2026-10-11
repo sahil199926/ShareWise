@@ -7,6 +7,8 @@ import {
   DashboardPage,
   DebtOverviewPage,
   LoginPage,
+  LeaderboardPage,
+  LeaderboardPersonPage,
   MasterPage,
   ProfilePage,
   PublicDebtsPage,
@@ -22,6 +24,22 @@ export const routes: RouteObject[] = [
     element: (
       <LazyRoute>
         <PublicDebtsPage />
+      </LazyRoute>
+    ),
+  },
+  {
+    path: '/leaderboard',
+    element: (
+      <LazyRoute>
+        <LeaderboardPage />
+      </LazyRoute>
+    ),
+  },
+  {
+    path: '/leaderboard/:email',
+    element: (
+      <LazyRoute>
+        <LeaderboardPersonPage />
       </LazyRoute>
     ),
   },

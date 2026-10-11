@@ -6,5 +6,9 @@ export const DebtOverviewPage = lazy(
   () => import('../components/debt-overview'),
 )
 export const PublicDebtsPage = lazy(() => import('../components/public-debts'))
+export const LeaderboardPage = lazy(() => import('../components/leaderboard'))
+export const LeaderboardPersonPage = lazy(
+  () => import('../components/leaderboard-person'),
+)
 export const ProfilePage = lazy(() => import('../components/profile'))
 export const MasterPage = lazy(() => import('../components/master'))
