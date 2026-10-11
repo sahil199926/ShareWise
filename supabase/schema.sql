@@ -85,6 +85,7 @@ create table if not exists public.app_users (
 create index if not exists app_users_type_idx on public.app_users (type);
 
 alter table public.app_users add column if not exists google_sub text;
+alter table public.app_users add column if not exists avatar_url text;
 
 create unique index if not exists app_users_google_sub_idx
   on public.app_users (google_sub)
@@ -122,7 +123,8 @@ as $$
     'email', person.email,
     'type', person.type,
     'age', person.age,
-    'score', person.score
+    'score', person.score,
+    'avatarUrl', person.avatar_url
   );
 $$;
 
@@ -148,7 +150,13 @@ begin
 end;
 $$;
 
-create or replace function public.login_with_google(p_email text, p_google_id text)
+drop function if exists public.login_with_google(text, text);
+
+create or replace function public.login_with_google(
+  p_email text,
+  p_google_id text,
+  p_avatar_url text default null
+)
 returns jsonb
 language plpgsql
 security definer
@@ -158,9 +166,14 @@ declare
   found public.app_users;
   normalized_email text := lower(trim(coalesce(p_email, '')));
   google_id text := trim(coalesce(p_google_id, ''));
+  avatar text := nullif(trim(coalesce(p_avatar_url, '')), '');
 begin
   if google_id = '' or normalized_email = '' then
     raise exception 'Google did not return an account';
+  end if;
+
+  if avatar is not null and avatar !~ '^https://' then
+    avatar := null;
   end if;
 
   select * into found
@@ -175,12 +188,16 @@ begin
     if found.id is null then
       raise exception 'This Google account is not on the people list';
     end if;
+  end if;
 
-    if found.google_sub is null then
-      update public.app_users
-      set google_sub = google_id
-      where id = found.id;
-    end if;
+  if found.google_sub is null
+    or (avatar is not null and found.avatar_url is distinct from avatar) then
+    update public.app_users
+    set
+      google_sub = coalesce(google_sub, google_id),
+      avatar_url = coalesce(avatar, avatar_url)
+    where id = found.id
+    returning * into found;
   end if;
 
   return public.user_public(found);
@@ -461,7 +478,7 @@ set name = 'Sahil Jaryal', type = 'SUPER ADMIN', age = null, score = 26
 where email = 'sahil199926@gmail.com';
 
 grant execute on function public.login(text, text) to anon, authenticated;
-grant execute on function public.login_with_google(text, text) to anon, authenticated;
+grant execute on function public.login_with_google(text, text, text) to anon, authenticated;
 grant execute on function public.get_profile(text) to anon, authenticated;
 grant execute on function public.update_profile(text, text, integer) to anon, authenticated;
 grant execute on function public.list_user_options(text) to anon, authenticated;

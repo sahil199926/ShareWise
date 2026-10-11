@@ -1,16 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/use-auth'
-
-const getInitials = (name: string) => {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
+import Avatar from '../avatar'
 
 const ProfileMenu = () => {
   const { user } = useAuth()
@@ -37,8 +28,6 @@ const ProfileMenu = () => {
     return null
   }
 
-  const initials = getInitials(user.name)
-
   return (
     <div className="relative" ref={containerRef}>
       <button
@@ -48,7 +37,11 @@ const ProfileMenu = () => {
         aria-haspopup="true"
         className="flex items-center gap-2 rounded-full border border-white/80 bg-white/70 py-1 pr-1 pl-1 shadow-sm transition hover:bg-white sm:pr-2.5"
       >
-        <span className="avatar-ring h-8 w-8 text-xs">{initials}</span>
+        <Avatar
+          name={user.name}
+          avatarUrl={user.avatarUrl}
+          className="h-8 w-8 text-xs"
+        />
         <span className="hidden max-w-32 truncate text-sm font-medium text-medium sm:inline">
           {user.name}
         </span>

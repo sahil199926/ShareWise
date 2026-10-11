@@ -15,19 +15,37 @@ const toUser = (value: unknown): User => {
     type: user.type ?? 'User',
     age: user.age ?? null,
     score: user.score ?? null,
+    avatarUrl: user.avatarUrl ?? null,
   }
 }
 
 export const signInWithGoogle = async () => {
   const profile = await signInWithGooglePopup()
-  return loginWithGoogle(profile.email, profile.googleId)
+  return loginWithGoogle(profile.email, profile.googleId, profile.avatarUrl)
 }
 
-const loginWithGoogle = async (email: string, googleId: string) => {
-  const { data, error } = await supabase.rpc('login_with_google', {
+const loginWithGoogle = async (
+  email: string,
+  googleId: string,
+  avatarUrl: string,
+) => {
+  const withPhoto = await supabase.rpc('login_with_google', {
     p_email: email,
     p_google_id: googleId,
+    p_avatar_url: avatarUrl || null,
   })
+
+  const photoMessage = withPhoto.error?.message ?? ''
+  const photoFnMissing =
+    photoMessage.includes('schema cache') ||
+    photoMessage.includes('p_avatar_url')
+
+  const { data, error } = photoFnMissing
+    ? await supabase.rpc('login_with_google', {
+        p_email: email,
+        p_google_id: googleId,
+      })
+    : withPhoto
 
   if (error || !data) {
     const message = error?.message ?? ''
@@ -38,5 +56,11 @@ const loginWithGoogle = async (email: string, googleId: string) => {
     )
   }
 
-  return toUser(data)
+  const user = toUser(data)
+
+  if (!user.avatarUrl && avatarUrl) {
+    user.avatarUrl = avatarUrl
+  }
+
+  return user
 }

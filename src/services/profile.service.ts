@@ -15,6 +15,7 @@ const toUser = (value: unknown): User => {
     type: user.type ?? 'User',
     age: user.age ?? null,
     score: user.score ?? null,
+    avatarUrl: user.avatarUrl ?? null,
   }
 }
 

@@ -4,4 +4,5 @@ export type User = {
   type: string
   age: number | null
   score: number | null
+  avatarUrl?: string | null
 }

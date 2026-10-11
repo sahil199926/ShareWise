@@ -1,21 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import AppHeader from '../app-header'
+import Avatar from '../avatar'
 import { ProfileFieldsSkeleton, Skeleton } from '../skeleton'
 import { useAuth } from '../../hooks/use-auth'
 import { getProfile, updateProfile } from '../../services/profile.service'
 import type { User } from '../../types/auth'
 import type { ProfileUpdateInput } from '../../types/profile'
-
-const getInitials = (name: string) => {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
 
 const formatReadOnly = (value: string | number | null | undefined) => {
   if (value === null || value === undefined || value === '') {
@@ -139,8 +130,9 @@ const Profile = () => {
     return null
   }
 
-  const displayUser = profile ?? user
-  const initials = getInitials(displayUser.name)
+  const displayUser = profile
+    ? { ...profile, avatarUrl: profile.avatarUrl || user.avatarUrl }
+    : user
 
   return (
     <div className="page-shell">
@@ -158,9 +150,11 @@ const Profile = () => {
           <div className="hero-banner px-6 py-8 sm:px-8">
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-end">
-                <span className="avatar-ring h-20 w-20 border-4 border-white/20 text-2xl shadow-lg">
-                  {initials}
-                </span>
+                <Avatar
+                  name={displayUser.name}
+                  avatarUrl={displayUser.avatarUrl}
+                  className="h-20 w-20 border-4 border-white/30 text-2xl shadow-lg"
+                />
                 <div className="text-center sm:text-left">
                   {isLoading ? (
                     <>

@@ -44,10 +44,12 @@ export const signInWithGooglePopup = async () => {
   provider.setCustomParameters({ prompt: 'select_account' })
 
   const result = await signInWithPopup(firebaseAuth, provider)
+  const googleProfile = result.user.providerData.find(
+    (item) => item.providerId === 'google.com',
+  )
   const email = result.user.email?.trim().toLowerCase() ?? ''
-  const googleId =
-    result.user.providerData.find((item) => item.providerId === 'google.com')
-      ?.uid ?? result.user.uid
+  const googleId = googleProfile?.uid ?? result.user.uid
+  const photoUrl = result.user.photoURL ?? googleProfile?.photoURL ?? ''
 
   await signOut(firebaseAuth).catch(() => undefined)
 
@@ -55,5 +57,9 @@ export const signInWithGooglePopup = async () => {
     throw new Error('Google did not return an account')
   }
 
-  return { email, googleId }
+  return {
+    email,
+    googleId,
+    avatarUrl: photoUrl.startsWith('https://') ? photoUrl : '',
+  }
 }
