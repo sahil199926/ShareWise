@@ -96,6 +96,17 @@ const DebtCard = ({
             </button>
           ) : null}
 
+          {isAdmin && debt.status === DEBT_STATUS.CLOSE_REQUESTED ? (
+            <button
+              type="button"
+              onClick={() => onReopen?.(debt)}
+              disabled={actionLoading}
+              className="btn-secondary text-xs"
+            >
+              Move to open
+            </button>
+          ) : null}
+
           {isAdmin && debt.status === DEBT_STATUS.CLOSED ? (
             <button
               type="button"

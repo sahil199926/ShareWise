@@ -10,6 +10,7 @@ import {
   formatRupee,
   getOpenDebtTotals,
 } from '../../lib/debt-utils'
+import { setShareMeta, shareCopy } from '../../lib/share-copy'
 import { listDebts } from '../../services/debts.service'
 import { DEBT_STATUS, type Debt } from '../../types/debt'
 
@@ -64,6 +65,22 @@ const PublicDebts = () => {
     () => getOpenDebtTotals(openDebts, email),
     [email, openDebts],
   )
+
+  useEffect(() => {
+    if (isLoading || name === email) return
+    const copy = shareCopy({
+      name,
+      openOwe: totals.toGive,
+      openReceive: totals.toReceive,
+      openOweCount: openDebts.filter(
+        (debt) => debt.debtorEmail.trim().toLowerCase() === email,
+      ).length,
+      openReceiveCount: openDebts.filter(
+        (debt) => debt.creditorEmail.trim().toLowerCase() === email,
+      ).length,
+    })
+    return setShareMeta(copy.title, copy.description)
+  }, [email, isLoading, name, openDebts, totals.toGive, totals.toReceive])
 
   const handleCopySummary = () => {
     const text = buildDebtShareText({

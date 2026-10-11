@@ -7,6 +7,7 @@ import LeaderboardFrame from '../leaderboard-frame'
 import { StatCardSkeleton } from '../skeleton'
 import { useAuth } from '../../hooks/use-auth'
 import { buildLeaderboard, type DayRange } from '../../lib/leaderboard'
+import { setShareMeta, shareCopy } from '../../lib/share-copy'
 import { listDebts } from '../../services/debts.service'
 import {
   avatarForEmail,
@@ -55,6 +56,12 @@ const LeaderboardPerson = () => {
       buildLeaderboard(debts).find((entry) => entry.email === email) ?? null
     )
   }, [debts, email])
+
+  useEffect(() => {
+    if (!person) return
+    const copy = shareCopy(person)
+    return setShareMeta(copy.title, copy.description)
+  }, [person])
 
   return (
     <LeaderboardFrame

@@ -2,6 +2,7 @@ import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { handleNotifyRequest } from './server/notify.js'
+import { buildSharePreview, isShareCrawler } from './server/share-preview.js'
 
 const mailApi = (): Plugin => ({
   name: 'karja-mail-api',
@@ -41,6 +42,39 @@ const mailApi = (): Plugin => ({
             res.end(JSON.stringify({ error: 'The email could not be sent.' }))
           })
       })
+    })
+
+    server.middlewares.use((req, res, next) => {
+      const userAgent = req.headers['user-agent']
+      if (
+        !isShareCrawler(Array.isArray(userAgent) ? userAgent[0] : userAgent)
+      ) {
+        next()
+        return
+      }
+
+      const url = new URL(req.url ?? '/', 'http://localhost')
+      const match = url.pathname.match(/^\/(leaderboard|share)\/([^/]+)$/)
+      if (!match) {
+        next()
+        return
+      }
+
+      const env = loadEnv(server.config.mode, process.cwd(), '')
+      void buildSharePreview({
+        kind: match[1] === 'share' ? 'share' : 'leaderboard',
+        email: match[2],
+        origin: 'http://localhost:5173',
+        env,
+      })
+        .then((html) => {
+          res.statusCode = 200
+          res.setHeader('Content-Type', 'text/html; charset=utf-8')
+          res.end(html)
+        })
+        .catch(() => {
+          next()
+        })
     })
   },
 })

@@ -396,7 +396,7 @@ const DebtOverview = () => {
                     if (!user) return
                     void runAction(
                       () => setDebtStatus(next.id, DEBT_STATUS.OPEN, user),
-                      'Debt reopened.',
+                      'Moved back to open.',
                     )
                   }}
                 />
