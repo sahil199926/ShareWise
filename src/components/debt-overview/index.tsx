@@ -196,18 +196,12 @@ const DebtOverview = () => {
   )
 
   const visibleDebts = useMemo(() => {
-    const scoped = isAdmin
-      ? debts
-      : debts.filter((debt) =>
-          user?.email ? debtInvolvesEmail(debt, user.email) : false,
-        )
-
-    return filterDebtsByDays(scoped, range).filter((debt) => {
+    return filterDebtsByDays(debts, range).filter((debt) => {
       if (!matchesFilter(debt, filter)) return false
       if (!personEmail) return true
       return debtInvolvesEmail(debt, personEmail)
     })
-  }, [debts, filter, isAdmin, personEmail, range, user?.email])
+  }, [debts, filter, personEmail, range])
 
   const totalPages = Math.max(
     1,
@@ -263,9 +257,7 @@ const DebtOverview = () => {
             <h2 className="text-lg font-semibold text-high">
               {selectedPerson
                 ? `${selectedPerson.name}'s debts`
-                : isAdmin
-                  ? 'Everyone’s debts'
-                  : 'Your debts'}
+                : 'Everyone’s debts'}
             </h2>
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <SelectField

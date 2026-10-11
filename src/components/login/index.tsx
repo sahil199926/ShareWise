@@ -71,14 +71,14 @@ const Login = () => {
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-10">
       <div className="grid w-full max-w-5xl items-center gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <div className="glass-card overflow-hidden p-6 lg:p-8">
+        <div className="glass-card order-2 overflow-hidden p-6 lg:order-1 lg:p-8">
           <p className="section-label">Karja, kept simple</p>
           <h2 className="mt-2 max-w-sm text-2xl font-semibold tracking-tight text-high sm:text-3xl">
             See who owes, who receives, and what is already closed.
           </h2>
           <KarjaArt className="mx-auto mt-2 h-48 w-full max-w-md sm:h-64 lg:h-80" />
         </div>
-        <div className="glass-card w-full p-8 sm:p-10">
+        <div className="glass-card order-1 w-full p-8 sm:p-10 lg:order-2">
           <div className="flex justify-center">
             <Logo size="lg" />
           </div>
@@ -109,11 +109,6 @@ const Login = () => {
                 for karja-app.
               </p>
             )}
-
-            <p className="text-center text-sm text-low">
-              Sign in with the Google account that matches your Karja email. The
-              first time, that Google id is saved on your person.
-            </p>
           </div>
         </div>
       </div>

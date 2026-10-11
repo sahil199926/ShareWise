@@ -256,7 +256,9 @@ const Dashboard = () => {
                 ? 'Peers’ current debts'
                 : `Open debts around ${firstName(name)}`}
             </h2>
-            <span className="text-sm text-low">{peerDebts.length} open</span>
+            <span className="text-sm text-low">
+              {peerDebts.length > 3 ? 'Top 3' : `${peerDebts.length} open`}
+            </span>
           </div>
 
           {isLoading ? (
@@ -269,7 +271,7 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {peerDebts.map((debt) => (
+              {peerDebts.slice(0, 3).map((debt) => (
                 <DebtCard
                   key={debt.id}
                   debt={debt}
