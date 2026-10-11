@@ -5,4 +5,5 @@ export function buildSharePreview(input: {
   email: string | undefined
   origin: string
   env: Record<string, string>
+  days?: string
 }): Promise<string>

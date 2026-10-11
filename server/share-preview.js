@@ -81,7 +81,7 @@ const summarize = (debts, email, openOnly) => {
   return person
 }
 
-export const shareCopy = (person) => {
+export const shareCopy = (person, days) => {
   const name = person.name || 'This person'
   const title = `${name} · Karja Tracker`
   const give =
@@ -92,11 +92,38 @@ export const shareCopy = (person) => {
     person.openReceiveCount === 0
       ? 'Nothing is coming in.'
       : `Will get ${rupee(person.openReceive)} across ${person.openReceiveCount} open ${debtWord(person.openReceiveCount)}.`
+  const summary = `${give} ${receive}`
 
   return {
     title,
-    description: `${give} ${receive}`,
+    description: days ? `For the last ${days} days, ${summary}` : summary,
   }
+}
+
+const dayCount = (value) => {
+  const count = Number(value)
+  return [30, 60, 90, 180].includes(count) ? count : 30
+}
+
+const dayKey = (value) =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(value))
+
+const recentKeys = (count) => {
+  const keys = new Set()
+
+  for (let offset = count - 1; offset >= 0; offset -= 1) {
+    const date = new Date()
+    date.setUTCHours(12, 0, 0, 0)
+    date.setUTCDate(date.getUTCDate() - offset)
+    keys.add(dayKey(date.toISOString()))
+  }
+
+  return keys
 }
 
 const loadDebts = async (env) => {
@@ -105,7 +132,7 @@ const loadDebts = async (env) => {
   if (!supabaseUrl || !supabaseKey) return []
 
   const response = await fetch(
-    `${supabaseUrl}/rest/v1/debts?select=debtor_email,debtor_name,creditor_email,creditor_name,amount,status`,
+    `${supabaseUrl}/rest/v1/debts?select=debtor_email,debtor_name,creditor_email,creditor_name,amount,status,created_at`,
     {
       headers: {
         apikey: supabaseKey,
@@ -119,12 +146,19 @@ const loadDebts = async (env) => {
   return Array.isArray(rows) ? rows : []
 }
 
-export const buildSharePreview = async ({ kind, email, origin, env }) => {
+export const buildSharePreview = async ({ kind, email, origin, env, days }) => {
   const safeEmail = decodeEmail(email)
+  const windowDays = kind === 'leaderboard' ? dayCount(days) : 0
   const debts = await loadDebts(env)
-  const person = summarize(debts, safeEmail, kind === 'share')
+  const allowed = windowDays ? recentKeys(windowDays) : null
+  const scoped = allowed
+    ? debts.filter((debt) => allowed.has(dayKey(debt.created_at)))
+    : debts
+  const named = summarize(debts, safeEmail, kind === 'share')
+  const person = summarize(scoped, safeEmail, kind === 'share')
+  person.name = person.name || named.name
   const copy = person.name
-    ? shareCopy(person)
+    ? shareCopy(person, windowDays || undefined)
     : {
         title: 'Karja Tracker',
         description: 'Open karja for this person is not on the board yet.',

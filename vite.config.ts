@@ -66,6 +66,7 @@ const mailApi = (): Plugin => ({
         email: match[2],
         origin: 'http://localhost:5173',
         env,
+        days: url.searchParams.get('days') ?? undefined,
       })
         .then((html) => {
           res.statusCode = 200

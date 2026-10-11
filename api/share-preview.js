@@ -9,6 +9,7 @@ export default async function handler(request, response) {
     email: request.query.email,
     origin: `${proto}://${host}`,
     env: process.env,
+    days: request.query.days,
   })
 
   response.setHeader('Content-Type', 'text/html; charset=utf-8')

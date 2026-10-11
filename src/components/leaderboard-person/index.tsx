@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import Avatar from '../avatar'
 import DayRangeFilter from '../day-range-filter'
 import LeaderboardDetail from '../leaderboard-detail'
 import LeaderboardFrame from '../leaderboard-frame'
 import { StatCardSkeleton } from '../skeleton'
 import { useAuth } from '../../hooks/use-auth'
-import { buildLeaderboard, type DayRange } from '../../lib/leaderboard'
+import {
+  DAY_RANGES,
+  buildLeaderboard,
+  filterDebtsByDays,
+  type DayRange,
+} from '../../lib/leaderboard'
 import { setShareMeta, shareCopy } from '../../lib/share-copy'
 import { listDebts } from '../../services/debts.service'
 import {
@@ -23,7 +28,13 @@ const LeaderboardPerson = () => {
   const [faces, setFaces] = useState<Record<string, string | null>>({})
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
-  const [range, setRange] = useState<DayRange>(30)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedDays = Number(searchParams.get('days'))
+  const [range, setRange] = useState<DayRange>(
+    DAY_RANGES.includes(requestedDays as DayRange)
+      ? (requestedDays as DayRange)
+      : 30,
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -57,17 +68,44 @@ const LeaderboardPerson = () => {
     )
   }, [debts, email])
 
+  const windowPerson = useMemo(() => {
+    return (
+      buildLeaderboard(filterDebtsByDays(debts, range)).find(
+        (entry) => entry.email === email,
+      ) ?? null
+    )
+  }, [debts, email, range])
+
   useEffect(() => {
-    if (!person) return
-    const copy = shareCopy(person)
+    const name = windowPerson?.name || person?.name
+    if (!name) return
+
+    const copy = shareCopy(
+      {
+        name,
+        openOwe: windowPerson?.openOwe ?? 0,
+        openReceive: windowPerson?.openReceive ?? 0,
+        openOweCount: windowPerson?.openOweCount ?? 0,
+        openReceiveCount: windowPerson?.openReceiveCount ?? 0,
+      },
+      range,
+    )
     return setShareMeta(copy.title, copy.description)
-  }, [person])
+  }, [person, range, windowPerson])
 
   return (
     <LeaderboardFrame
       title={person?.name ?? 'Player'}
       subtitle="Contributions, what they still owe, and what is coming in."
-      headerAside={<DayRangeFilter value={range} onChange={setRange} />}
+      headerAside={
+        <DayRangeFilter
+          value={range}
+          onChange={(next) => {
+            setRange(next)
+            setSearchParams({ days: String(next) }, { replace: true })
+          }}
+        />
+      }
       titleLeading={
         person ? (
           <Avatar
