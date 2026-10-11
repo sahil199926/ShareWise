@@ -96,8 +96,8 @@ const AppHeader = ({
           ) : null}
         </div>
 
-        <nav className="-mb-px flex flex-wrap items-center gap-2 border-t border-divider py-2">
-          <div className="flex gap-1 overflow-x-auto">
+        <nav className="-mb-px flex w-full flex-col gap-2 border-t border-divider py-2 min-[480px]:flex-row min-[480px]:flex-wrap min-[480px]:items-center">
+          <div className="flex flex-wrap gap-1">
             {visibleNavLinks.map((link) => {
               const isActive =
                 link.to === '/leaderboard'
@@ -128,7 +128,11 @@ const AppHeader = ({
               )
             })}
           </div>
-          {navAside ? <div className="ml-auto shrink-0">{navAside}</div> : null}
+          {navAside ? (
+            <div className="w-full min-[480px]:ml-auto min-[480px]:w-auto">
+              {navAside}
+            </div>
+          ) : null}
         </nav>
       </div>
     </header>

@@ -1,4 +1,9 @@
 import { supabase } from '../lib/supabase'
+import {
+  canChangeDebtStatus,
+  canRequestDebtClose,
+  REOPEN_WINDOW_MS,
+} from '../lib/debt-permissions'
 import { mapDebtRow } from '../lib/debt-utils'
 import {
   DEBT_STATUS,
@@ -120,6 +125,9 @@ export const updateDebt = async (id: string, input: DebtInput) => {
 }
 
 export const requestDebtClose = async (debt: Debt, user: User) => {
+  const permission = canRequestDebtClose(debt, user.email)
+  if (!permission.ok) throw new Error(permission.message)
+
   const { data, error } = await supabase
     .from(TABLE)
     .update({
@@ -128,8 +136,9 @@ export const requestDebtClose = async (debt: Debt, user: User) => {
       requested_at: new Date().toISOString(),
     })
     .eq('id', debt.id)
+    .eq('status', DEBT_STATUS.OPEN)
     .select('*')
-    .single()
+    .maybeSingle()
 
   if (error || !data) {
     throw new Error(toDebtError(error?.message, 'Failed to request close'))
@@ -141,12 +150,19 @@ export const requestDebtClose = async (debt: Debt, user: User) => {
 export const setDebtStatus = async (
   debtId: string,
   status: Debt['status'],
-  admin: User,
+  user: User,
+  isAdmin = false,
 ) => {
+  const current = await getDebt(debtId)
+  if (!current) throw new Error('This debt was not found.')
+
+  const permission = canChangeDebtStatus(current, status, user.email, isAdmin)
+  if (!permission.ok) throw new Error(permission.message)
+
   const payload: Record<string, unknown> = { status }
 
   if (status === DEBT_STATUS.CLOSED) {
-    payload.closed_by_email = admin.email.trim().toLowerCase()
+    payload.closed_by_email = user.email.trim().toLowerCase()
     payload.closed_at = new Date().toISOString()
   } else {
     payload.closed_by_email = null
@@ -158,12 +174,17 @@ export const setDebtStatus = async (
     payload.requested_at = null
   }
 
-  const { data, error } = await supabase
-    .from(TABLE)
-    .update(payload)
-    .eq('id', debtId)
-    .select('*')
-    .single()
+  let query = supabase.from(TABLE).update(payload).eq('id', debtId)
+
+  if (status === DEBT_STATUS.CLOSED) {
+    query = query.in('status', [DEBT_STATUS.OPEN, DEBT_STATUS.CLOSE_REQUESTED])
+  } else if (status === DEBT_STATUS.OPEN && !isAdmin) {
+    query = query
+      .eq('status', DEBT_STATUS.CLOSED)
+      .gte('closed_at', new Date(Date.now() - REOPEN_WINDOW_MS).toISOString())
+  }
+
+  const { data, error } = await query.select('*').maybeSingle()
 
   if (error || !data) {
     throw new Error(toDebtError(error?.message, 'Failed to update status'))

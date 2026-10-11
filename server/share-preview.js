@@ -170,6 +170,7 @@ export const buildSharePreview = async ({ kind, email, origin, env, days }) => {
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="robots" content="noindex, nofollow" />
     <title>${escapeHtml(copy.title)}</title>
     <meta name="description" content="${escapeHtml(copy.description)}" />
     <meta property="og:type" content="website" />

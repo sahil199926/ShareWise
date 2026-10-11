@@ -105,9 +105,9 @@ const PublicDebts = () => {
   return (
     <div className="page-shell">
       <header className="border-b border-white/50 bg-white/45 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <Logo size="md" />
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Link to="/leaderboard" className="btn-ghost">
               Leaderboard
             </Link>

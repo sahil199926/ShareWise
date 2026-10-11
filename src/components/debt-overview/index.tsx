@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import AppHeader from '../app-header'
+import ConfirmModal from '../confirm-modal'
 import DayRangeFilter from '../day-range-filter'
 import DebtCard from '../debt-card'
 import DebtFormModal from '../debt-form-modal'
@@ -11,7 +12,11 @@ import { DEBT_PAGE_SIZE } from '../../constants/pagination'
 import { useAuth } from '../../hooks/use-auth'
 import { isSuperAdmin } from '../../lib/auth-utils'
 import { copyTextToClipboard } from '../../lib/clipboard'
-import { buildDebtShareText, debtInvolvesEmail } from '../../lib/debt-utils'
+import {
+  buildDebtShareText,
+  debtInvolvesEmail,
+  formatRupee,
+} from '../../lib/debt-utils'
 import { filterDebtsByDays, type DayRange } from '../../lib/leaderboard'
 import { mergePeople } from '../../lib/overview-stats'
 import { notifyDebtMail } from '../../services/mail.service'
@@ -66,6 +71,7 @@ const DebtOverview = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [shareText, setShareText] = useState('')
+  const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null)
 
   const loadDebts = useCallback(async () => {
     const nextDebts = await listDebts()
@@ -135,8 +141,10 @@ const DebtOverview = () => {
       await work()
       await loadDebts()
       setSuccess(message)
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Action failed')
+      return false
     } finally {
       setActionLoading(false)
     }
@@ -218,7 +226,7 @@ const DebtOverview = () => {
         subtitle={
           isAdmin
             ? 'Filter by person, then add, edit, or close a karja.'
-            : 'Your debts, filtered by the other person.'
+            : 'Ask to close what you will give. Close what you will get.'
         }
         onLogout={handleLogout}
         navAside={
@@ -366,12 +374,7 @@ const DebtOverview = () => {
                     setEditingDebt(next)
                     setIsModalOpen(true)
                   }}
-                  onDelete={(next) => {
-                    if (!window.confirm(`Delete ${next.debtorName}'s debt?`)) {
-                      return
-                    }
-                    void runAction(() => deleteDebt(next.id), 'Debt deleted.')
-                  }}
+                  onDelete={setDebtToDelete}
                   onRequestClose={(next) => {
                     if (!user) return
                     void runAction(async () => {
@@ -388,14 +391,21 @@ const DebtOverview = () => {
                   onMarkClosed={(next) => {
                     if (!user) return
                     void runAction(
-                      () => setDebtStatus(next.id, DEBT_STATUS.CLOSED, user),
+                      () =>
+                        setDebtStatus(
+                          next.id,
+                          DEBT_STATUS.CLOSED,
+                          user,
+                          isAdmin,
+                        ),
                       `Closed ${next.debtorName}'s debt.`,
                     )
                   }}
                   onReopen={(next) => {
                     if (!user) return
                     void runAction(
-                      () => setDebtStatus(next.id, DEBT_STATUS.OPEN, user),
+                      () =>
+                        setDebtStatus(next.id, DEBT_STATUS.OPEN, user, isAdmin),
                       'Moved back to open.',
                     )
                   }}
@@ -420,6 +430,28 @@ const DebtOverview = () => {
           ) : null}
         </section>
       </main>
+
+      <ConfirmModal
+        isOpen={Boolean(debtToDelete)}
+        message={
+          debtToDelete
+            ? `Delete the ${formatRupee(debtToDelete.amount)} debt where ${debtToDelete.debtorName} will give ${debtToDelete.creditorName}? This cannot be undone.`
+            : ''
+        }
+        isConfirming={actionLoading}
+        onCancel={() => {
+          if (!actionLoading) setDebtToDelete(null)
+        }}
+        onConfirm={() => {
+          if (!debtToDelete) return
+          const debt = debtToDelete
+          void runAction(() => deleteDebt(debt.id), 'Debt deleted.').then(
+            (didDelete) => {
+              if (didDelete) setDebtToDelete(null)
+            },
+          )
+        }}
+      />
 
       {isAdmin ? (
         <DebtFormModal

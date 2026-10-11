@@ -40,6 +40,9 @@ alwaysApply: true
 - `open` — still owed
 - `close_requested` — debtor asked to close, and the person who is owed confirms
 - `closed` — confirmed
+- The person who will give can only ask to close an open debt.
+- The person who will receive can close their own open or requested debt, and can put it back within 30 minutes of closing.
+- A super admin can still edit, delete, close, and reopen any debt.
 
 ## Routes
 

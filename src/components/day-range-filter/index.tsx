@@ -7,7 +7,7 @@ type DayRangeFilterProps = {
 
 const DayRangeFilter = ({ value, onChange }: DayRangeFilterProps) => {
   return (
-    <div className="flex gap-1" role="group" aria-label="Last days">
+    <div className="flex flex-wrap gap-1" role="group" aria-label="Last days">
       {DAY_RANGES.map((option) => (
         <button
           key={option}

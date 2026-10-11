@@ -1,5 +1,12 @@
+import { useEffect, useState } from 'react'
 import { DEBT_STATUS, type Debt } from '../../types/debt'
 import { formatDebtDate, formatRupee } from '../../lib/debt-utils'
+import {
+  closedWithinReopenWindow,
+  isDebtCreditor,
+  isDebtDebtor,
+  REOPEN_WINDOW_MS,
+} from '../../lib/debt-permissions'
 import DebtStatusBadge from '../debt-status-badge'
 
 type DebtCardProps = {
@@ -25,12 +32,36 @@ const DebtCard = ({
   onMarkClosed,
   onReopen,
 }: DebtCardProps) => {
-  const email = currentUserEmail?.trim().toLowerCase()
-  const isDebtor = Boolean(email) && debt.debtorEmail.toLowerCase() === email
-  const isCreditor =
-    Boolean(email) && debt.creditorEmail.toLowerCase() === email
+  const email = currentUserEmail?.trim().toLowerCase() ?? ''
+  const isDebtor = Boolean(email) && isDebtDebtor(debt, email)
+  const isCreditor = Boolean(email) && isDebtCreditor(debt, email)
+  const [now, setNow] = useState(() => Date.now())
   const canRequestClose =
-    isDebtor && debt.status === DEBT_STATUS.OPEN && Boolean(onRequestClose)
+    !isAdmin &&
+    isDebtor &&
+    debt.status === DEBT_STATUS.OPEN &&
+    Boolean(onRequestClose)
+  const canCreditorClose =
+    !isAdmin &&
+    isCreditor &&
+    (debt.status === DEBT_STATUS.OPEN ||
+      debt.status === DEBT_STATUS.CLOSE_REQUESTED) &&
+    Boolean(onMarkClosed)
+  const canPutBack =
+    !isAdmin &&
+    isCreditor &&
+    debt.status === DEBT_STATUS.CLOSED &&
+    closedWithinReopenWindow(debt, now) &&
+    Boolean(onReopen)
+
+  useEffect(() => {
+    if (!canPutBack || !debt.closedAt) return
+    const ends = new Date(debt.closedAt).getTime() + REOPEN_WINDOW_MS
+    const delay = ends - Date.now()
+    if (delay <= 0) return
+    const timer = window.setTimeout(() => setNow(Date.now()), delay + 50)
+    return () => window.clearTimeout(timer)
+  }, [canPutBack, debt.closedAt])
   const toneClass = isDebtor
     ? 'debt-card-pay'
     : isCreditor
@@ -72,7 +103,7 @@ const DebtCard = ({
           : ''}
       </p>
 
-      {canRequestClose || isAdmin ? (
+      {canRequestClose || canCreditorClose || canPutBack || isAdmin ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {canRequestClose ? (
             <button
@@ -82,6 +113,31 @@ const DebtCard = ({
               className="btn-secondary text-xs"
             >
               I paid — please close
+            </button>
+          ) : null}
+
+          {canCreditorClose ? (
+            <button
+              type="button"
+              onClick={() => onMarkClosed?.(debt)}
+              disabled={actionLoading}
+              className="btn-primary text-xs"
+            >
+              {debt.status === DEBT_STATUS.CLOSE_REQUESTED
+                ? 'Confirm close'
+                : 'Mark closed'}
+            </button>
+          ) : null}
+
+          {canPutBack ? (
+            <button
+              type="button"
+              onClick={() => onReopen?.(debt)}
+              disabled={actionLoading}
+              className="btn-secondary text-xs"
+              title="Available for 30 minutes after this was closed"
+            >
+              Put back
             </button>
           ) : null}
 

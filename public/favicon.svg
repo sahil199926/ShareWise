@@ -1,12 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none">
-  <rect width="48" height="48" rx="14" fill="#14532d"/>
-  <circle cx="24" cy="24" r="15" fill="#16a34a"/>
-  <circle cx="24" cy="24" r="12.25" stroke="#fde68a" stroke-width="1.4"/>
-  <path
-    d="M16.8 16.2h14.6M16.8 20.4h12.6M21 16.2v6.1c0 3.5 2.5 5.4 7.4 5M18.2 26.8 30.6 35.6"
-    stroke="#fff"
-    stroke-width="2.2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-  />
+  <defs>
+    <linearGradient id="tile" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#155d3a"/>
+      <stop offset="1" stop-color="#0b3928"/>
+    </linearGradient>
+    <linearGradient id="coin" x1="13" y1="10" x2="36" y2="38" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#35d879"/>
+      <stop offset="1" stop-color="#13a957"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="14" fill="url(#tile)"/>
+  <circle cx="24" cy="24" r="16" fill="url(#coin)"/>
+  <circle cx="24" cy="24" r="13.4" stroke="#a7f3c4" stroke-opacity=".7" stroke-width=".8"/>
+  <path d="M15.1 19.2a11.2 11.2 0 0 1 16.8-5.7" stroke="#d9f99d" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="m29.7 10.7 3.8 1.5-2.6 3.1" fill="#d9f99d"/>
+  <path d="M32.9 28.8a11.2 11.2 0 0 1-16.8 5.7" stroke="#d9f99d" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="m18.3 37.3-3.8-1.5 2.6-3.1" fill="#d9f99d"/>
+  <path d="M18.2 18h12.6M18.2 21.8h10.7M21.8 18c3.9 0 5.9 1.6 5.9 4.1 0 2.5-2 4.2-5.5 4.2h-1.8l8 6.7" stroke="#fff" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

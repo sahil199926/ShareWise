@@ -56,7 +56,7 @@ const ConfirmPayment = () => {
   return (
     <div className="page-shell">
       <header className="border-b border-white/50 bg-white/45 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <Logo size="md" />
           <Link to="/login" className="btn-primary">
             Sign in

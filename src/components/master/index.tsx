@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AppHeader from '../app-header'
+import ConfirmModal from '../confirm-modal'
 import Pagination from '../pagination'
 import { PeopleTableSkeleton } from '../skeleton'
 import UserFormModal from '../user-form-modal'
@@ -35,6 +36,7 @@ const Master = () => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
   const [editingUser, setEditingUser] = useState<MasterUser | undefined>()
+  const [userToDelete, setUserToDelete] = useState<MasterUser | null>(null)
 
   const reloadUsers = useCallback(
     (page: number) => {
@@ -102,22 +104,23 @@ const Master = () => {
     }
   }
 
-  const handleDelete = async (targetUser: MasterUser) => {
+  const askDelete = (targetUser: MasterUser) => {
     if (user?.email && isSameUserEmail(user.email, targetUser.email)) {
       setError('You cannot delete your own account.')
       return
     }
 
-    const confirmed = window.confirm(
-      `Delete user "${targetUser.name}" (${targetUser.email})?`,
-    )
+    setUserToDelete(targetUser)
+  }
 
-    if (!confirmed || !user?.email) return
+  const handleDelete = async () => {
+    if (!userToDelete || !user?.email) return
 
     setIsLoading(true)
 
     try {
-      await deleteUser(user.email, targetUser.id)
+      await deleteUser(user.email, userToDelete.id)
+      setUserToDelete(null)
       reloadUsers(currentPage)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete user')
@@ -171,7 +174,7 @@ const Master = () => {
               users={users}
               currentUserEmail={user?.email}
               onEdit={openEditModal}
-              onDelete={handleDelete}
+              onDelete={askDelete}
             />
 
             <div className="mt-6">
@@ -185,6 +188,22 @@ const Master = () => {
           </>
         )}
       </main>
+
+      <ConfirmModal
+        isOpen={Boolean(userToDelete)}
+        message={
+          userToDelete
+            ? `Delete ${userToDelete.name} (${userToDelete.email})? This cannot be undone.`
+            : ''
+        }
+        isConfirming={isLoading}
+        onCancel={() => {
+          if (!isLoading) setUserToDelete(null)
+        }}
+        onConfirm={() => {
+          void handleDelete()
+        }}
+      />
 
       <UserFormModal
         key={`${modalMode}-${editingUser?.id ?? 'new'}`}

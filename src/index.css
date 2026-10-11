@@ -212,7 +212,7 @@
   }
 
   .hero-banner-subtitle {
-    @apply mt-1 text-sm text-white/80;
+    @apply mt-1 text-sm break-all text-white/80;
   }
 
   .hero-banner .btn-secondary {
@@ -271,7 +271,7 @@
   }
 
   .table-cell {
-    @apply px-4 py-3 text-sm whitespace-nowrap text-medium;
+    @apply px-4 py-3 text-sm text-medium;
   }
 
   .modal-overlay {

@@ -167,7 +167,7 @@ const Leaderboard = () => {
         </div>
       )}
 
-      <div className="mt-8 flex gap-2 overflow-x-auto pb-1">
+      <div className="mt-8 flex flex-wrap gap-2">
         {BOARDS.map((item) => (
           <button
             key={item.id}
@@ -198,13 +198,13 @@ const Leaderboard = () => {
               className="glass-card block p-4 sm:p-5"
             >
               <div className="flex items-center gap-4">
-                <span className="w-8 shrink-0 text-3xl font-bold text-emerald-deep">
+                <span className="w-6 shrink-0 text-2xl font-bold text-emerald-deep sm:w-8 sm:text-3xl">
                   {index + 1}
                 </span>
                 <Avatar
                   name={person.name}
                   avatarUrl={avatarForEmail(person.email, faces, user)}
-                  className="h-11 w-11 text-sm"
+                  className="h-9 w-9 text-xs sm:h-11 sm:w-11 sm:text-sm"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-3">
@@ -212,7 +212,7 @@ const Leaderboard = () => {
                       {person.name}
                     </p>
                     <p
-                      className={`shrink-0 text-xl font-bold ${amountClass[board]}`}
+                      className={`shrink-0 text-base font-bold sm:text-xl ${amountClass[board]}`}
                     >
                       {formatRupee(person.amount)}
                     </p>
