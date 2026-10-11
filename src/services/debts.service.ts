@@ -16,18 +16,20 @@ import type { User } from '../types/auth'
 const TABLE = 'debts'
 
 const toDebtError = (message: string | undefined, fallback: string) => {
-  if (message?.includes('public.debts')) {
-    return 'Debts table is missing in Supabase. Open the SQL editor and run supabase/schema.sql, then try again.'
+  if (
+    message?.includes('public.debts') ||
+    message?.includes('list_debt_details') ||
+    message?.includes('get_debt_detail') ||
+    message?.includes('schema cache')
+  ) {
+    return 'Debts need a database update. Open the SQL editor and run supabase/schema.sql, then try again.'
   }
 
   return message || fallback
 }
 
 const loadDebts = async (): Promise<Debt[]> => {
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select('*')
-    .order('created_at', { ascending: false })
+  const { data, error } = await supabase.rpc('list_debt_details')
 
   if (error) {
     throw new Error(toDebtError(error.message, 'Failed to load debts'))
@@ -39,11 +41,7 @@ const loadDebts = async (): Promise<Debt[]> => {
 export const listDebts = loadDebts
 
 export const getDebt = async (id: string) => {
-  const { data, error } = await supabase
-    .from(TABLE)
-    .select('*')
-    .eq('id', id)
-    .maybeSingle()
+  const { data, error } = await supabase.rpc('get_debt_detail', { p_id: id })
 
   if (error) {
     if (error.message.includes('uuid')) return null
@@ -51,6 +49,12 @@ export const getDebt = async (id: string) => {
   }
 
   return data ? mapDebtRow(data as DebtRow) : null
+}
+
+const readSavedDebt = async (id: string) => {
+  const debt = await getDebt(id)
+  if (!debt) throw new Error('This debt was not found.')
+  return debt
 }
 
 export const confirmDebtPayment = async (debt: Debt) => {
@@ -63,7 +67,7 @@ export const confirmDebtPayment = async (debt: Debt) => {
     })
     .eq('id', debt.id)
     .eq('status', DEBT_STATUS.CLOSE_REQUESTED)
-    .select('*')
+    .select('id')
     .maybeSingle()
 
   if (error || !data) {
@@ -75,53 +79,49 @@ export const confirmDebtPayment = async (debt: Debt) => {
     )
   }
 
-  return mapDebtRow(data as DebtRow)
+  return readSavedDebt(debt.id)
 }
 
 export const createDebt = async (admin: User, input: DebtInput) => {
   const { data, error } = await supabase
     .from(TABLE)
     .insert({
-      debtor_email: input.debtorEmail.trim().toLowerCase(),
-      debtor_name: input.debtorName.trim(),
-      creditor_email: input.creditorEmail.trim().toLowerCase(),
-      creditor_name: input.creditorName.trim(),
+      debtor_id: input.debtorId,
+      creditor_id: input.creditorId,
       amount: input.amount,
       note: input.note.trim(),
       status: DEBT_STATUS.OPEN,
       created_by_email: admin.email.trim().toLowerCase(),
       created_by_name: admin.name.trim(),
     })
-    .select('*')
+    .select('id')
     .single()
 
   if (error || !data) {
     throw new Error(toDebtError(error?.message, 'Failed to add debt'))
   }
 
-  return mapDebtRow(data as DebtRow)
+  return readSavedDebt(data.id)
 }
 
 export const updateDebt = async (id: string, input: DebtInput) => {
   const { data, error } = await supabase
     .from(TABLE)
     .update({
-      debtor_email: input.debtorEmail.trim().toLowerCase(),
-      debtor_name: input.debtorName.trim(),
-      creditor_email: input.creditorEmail.trim().toLowerCase(),
-      creditor_name: input.creditorName.trim(),
+      debtor_id: input.debtorId,
+      creditor_id: input.creditorId,
       amount: input.amount,
       note: input.note.trim(),
     })
     .eq('id', id)
-    .select('*')
-    .single()
+    .select('id')
+    .maybeSingle()
 
   if (error || !data) {
     throw new Error(toDebtError(error?.message, 'Failed to update debt'))
   }
 
-  return mapDebtRow(data as DebtRow)
+  return readSavedDebt(id)
 }
 
 export const requestDebtClose = async (debt: Debt, user: User) => {
@@ -137,14 +137,14 @@ export const requestDebtClose = async (debt: Debt, user: User) => {
     })
     .eq('id', debt.id)
     .eq('status', DEBT_STATUS.OPEN)
-    .select('*')
+    .select('id')
     .maybeSingle()
 
   if (error || !data) {
     throw new Error(toDebtError(error?.message, 'Failed to request close'))
   }
 
-  return mapDebtRow(data as DebtRow)
+  return readSavedDebt(debt.id)
 }
 
 export const setDebtStatus = async (
@@ -184,13 +184,13 @@ export const setDebtStatus = async (
       .gte('closed_at', new Date(Date.now() - REOPEN_WINDOW_MS).toISOString())
   }
 
-  const { data, error } = await query.select('*').maybeSingle()
+  const { data, error } = await query.select('id').maybeSingle()
 
   if (error || !data) {
     throw new Error(toDebtError(error?.message, 'Failed to update status'))
   }
 
-  return mapDebtRow(data as DebtRow)
+  return readSavedDebt(debtId)
 }
 
 export const deleteDebt = async (id: string) => {

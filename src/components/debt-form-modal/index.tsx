@@ -15,8 +15,8 @@ type DebtFormModalProps = {
 }
 
 const emptyForm = {
-  debtorEmail: '',
-  creditorEmail: '',
+  debtorId: '',
+  creditorId: '',
   amount: '',
   note: '',
 }
@@ -40,8 +40,8 @@ const DebtFormModal = ({
     setForm(
       debt
         ? {
-            debtorEmail: debt.debtorEmail,
-            creditorEmail: debt.creditorEmail,
+            debtorId: debt.debtorId,
+            creditorId: debt.creditorId,
             amount: String(debt.amount),
             note: debt.note,
           }
@@ -53,20 +53,16 @@ const DebtFormModal = ({
     event.preventDefault()
     setError('')
 
-    const debtor = users.find(
-      (user) => user.email.toLowerCase() === form.debtorEmail.toLowerCase(),
-    )
-    const creditor = users.find(
-      (user) => user.email.toLowerCase() === form.creditorEmail.toLowerCase(),
-    )
+    const debtor = users.find((user) => user.id === form.debtorId)
+    const creditor = users.find((user) => user.id === form.creditorId)
     const amount = Number(form.amount)
 
-    if (!debtor || !creditor) {
+    if (!debtor?.id || !creditor?.id) {
       setError('Pick both people from the list.')
       return
     }
 
-    if (debtor.email.toLowerCase() === creditor.email.toLowerCase()) {
+    if (debtor.id === creditor.id) {
       setError('Debtor and receiver must be different people.')
       return
     }
@@ -78,10 +74,8 @@ const DebtFormModal = ({
 
     try {
       await onSubmit({
-        debtorEmail: debtor.email,
-        debtorName: debtor.name,
-        creditorEmail: creditor.email,
-        creditorName: creditor.name,
+        debtorId: debtor.id,
+        creditorId: creditor.id,
         amount,
         note: form.note.trim(),
       })
@@ -109,16 +103,15 @@ const DebtFormModal = ({
           </label>
           <SelectField
             id="debtor"
-            value={form.debtorEmail}
+            value={form.debtorId}
             placeholder="Select person"
             required
             disabled={isSubmitting}
-            options={users.map((user) => ({
-              value: user.email,
-              label: user.name,
-            }))}
-            onChange={(debtorEmail) =>
-              setForm((current) => ({ ...current, debtorEmail }))
+            options={users.flatMap((user) =>
+              user.id ? [{ value: user.id, label: user.name }] : [],
+            )}
+            onChange={(debtorId) =>
+              setForm((current) => ({ ...current, debtorId }))
             }
           />
         </div>
@@ -129,16 +122,15 @@ const DebtFormModal = ({
           </label>
           <SelectField
             id="creditor"
-            value={form.creditorEmail}
+            value={form.creditorId}
             placeholder="Select person"
             required
             disabled={isSubmitting}
-            options={users.map((user) => ({
-              value: user.email,
-              label: user.name,
-            }))}
-            onChange={(creditorEmail) =>
-              setForm((current) => ({ ...current, creditorEmail }))
+            options={users.flatMap((user) =>
+              user.id ? [{ value: user.id, label: user.name }] : [],
+            )}
+            onChange={(creditorId) =>
+              setForm((current) => ({ ...current, creditorId }))
             }
           />
         </div>

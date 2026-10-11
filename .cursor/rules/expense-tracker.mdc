@@ -30,6 +30,7 @@ alwaysApply: true
 - **People CRUD** is SUPER ADMIN only, through `src/services/users.service.ts`.
 - **Login and profile** go through `src/services/auth.service.ts` and `src/services/profile.service.ts`.
 - **All debt calls** go through `src/services/debts.service.ts`.
+- A debt stores `debtor_id` and `creditor_id` pointing at `app_users.id`. Do not copy the person's name or email onto the debt.
 - **Supabase access** goes through `src/lib/supabase.ts`.
 - **Firebase access** goes through `src/lib/firebase.ts`.
 - Never import `VITE_SUPABASE_SECRET_KEY` in the browser.

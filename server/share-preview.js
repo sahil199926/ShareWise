@@ -131,15 +131,15 @@ const loadDebts = async (env) => {
   const supabaseKey = env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? ''
   if (!supabaseUrl || !supabaseKey) return []
 
-  const response = await fetch(
-    `${supabaseUrl}/rest/v1/debts?select=debtor_email,debtor_name,creditor_email,creditor_name,amount,status,created_at`,
-    {
-      headers: {
-        apikey: supabaseKey,
-        Authorization: `Bearer ${supabaseKey}`,
-      },
+  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/list_debt_details`, {
+    method: 'POST',
+    headers: {
+      apikey: supabaseKey,
+      Authorization: `Bearer ${supabaseKey}`,
+      'Content-Type': 'application/json',
     },
-  )
+    body: '{}',
+  })
 
   if (!response.ok) return []
   const rows = await response.json()

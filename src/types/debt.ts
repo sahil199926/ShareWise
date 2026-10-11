@@ -8,8 +8,10 @@ export type DebtStatus = (typeof DEBT_STATUS)[keyof typeof DEBT_STATUS]
 
 export type Debt = {
   id: string
+  debtorId: string
   debtorEmail: string
   debtorName: string
+  creditorId: string
   creditorEmail: string
   creditorName: string
   amount: number
@@ -26,18 +28,18 @@ export type Debt = {
 }
 
 export type DebtInput = {
-  debtorEmail: string
-  debtorName: string
-  creditorEmail: string
-  creditorName: string
+  debtorId: string
+  creditorId: string
   amount: number
   note: string
 }
 
 export type DebtRow = {
   id: string
+  debtor_id: string
   debtor_email: string
   debtor_name: string
+  creditor_id: string
   creditor_email: string
   creditor_name: string
   amount: number | string

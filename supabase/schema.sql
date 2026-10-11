@@ -2,10 +2,8 @@ create extension if not exists pgcrypto with schema extensions;
 
 create table if not exists public.debts (
   id uuid primary key default gen_random_uuid(),
-  debtor_email text not null,
-  debtor_name text not null,
-  creditor_email text not null,
-  creditor_name text not null,
+  debtor_id uuid,
+  creditor_id uuid,
   amount numeric(12, 2) not null check (amount > 0),
   note text not null default '',
   status text not null default 'open'
@@ -21,8 +19,6 @@ create table if not exists public.debts (
 );
 
 create index if not exists debts_status_idx on public.debts (status);
-create index if not exists debts_debtor_email_idx on public.debts (debtor_email);
-create index if not exists debts_creditor_email_idx on public.debts (creditor_email);
 create index if not exists debts_created_at_idx on public.debts (created_at desc);
 
 create or replace function public.set_debts_updated_at()
@@ -93,6 +89,94 @@ create unique index if not exists app_users_google_sub_idx
 
 alter table public.app_users enable row level security;
 revoke all on table public.app_users from anon, authenticated, public;
+
+-- People are referenced by id. Names and emails stay on app_users.
+alter table public.debts add column if not exists debtor_id uuid;
+alter table public.debts add column if not exists creditor_id uuid;
+
+update public.app_users
+set email = lower(trim(email))
+where email is distinct from lower(trim(email));
+
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'debts'
+      and column_name = 'debtor_email'
+  ) then
+    update public.debts d
+    set debtor_id = u.id
+    from public.app_users u
+    where d.debtor_id is null
+      and lower(trim(d.debtor_email)) = lower(trim(u.email));
+
+    update public.debts d
+    set creditor_id = u.id
+    from public.app_users u
+    where d.creditor_id is null
+      and lower(trim(d.creditor_email)) = lower(trim(u.email));
+
+    update public.debts d
+    set debtor_id = matched.id
+    from (
+      select min(id::text)::uuid as id, lower(trim(name)) as name
+      from public.app_users
+      group by lower(trim(name))
+      having count(*) = 1
+    ) matched
+    where d.debtor_id is null
+      and lower(trim(d.debtor_name)) = matched.name;
+
+    update public.debts d
+    set creditor_id = matched.id
+    from (
+      select min(id::text)::uuid as id, lower(trim(name)) as name
+      from public.app_users
+      group by lower(trim(name))
+      having count(*) = 1
+    ) matched
+    where d.creditor_id is null
+      and lower(trim(d.creditor_name)) = matched.name;
+
+    if exists (
+      select 1
+      from public.debts
+      where debtor_id is null or creditor_id is null
+    ) then
+      raise exception 'Some debts could not be linked to a person. Match those emails in app_users, then run this again.';
+    end if;
+
+    drop index if exists public.debts_debtor_email_idx;
+    drop index if exists public.debts_creditor_email_idx;
+    alter table public.debts drop column debtor_email;
+    alter table public.debts drop column debtor_name;
+    alter table public.debts drop column creditor_email;
+    alter table public.debts drop column creditor_name;
+  end if;
+end $$;
+
+alter table public.debts alter column debtor_id set not null;
+alter table public.debts alter column creditor_id set not null;
+
+alter table public.debts drop constraint if exists debts_debtor_id_fkey;
+alter table public.debts
+  add constraint debts_debtor_id_fkey
+  foreign key (debtor_id) references public.app_users (id);
+
+alter table public.debts drop constraint if exists debts_creditor_id_fkey;
+alter table public.debts
+  add constraint debts_creditor_id_fkey
+  foreign key (creditor_id) references public.app_users (id);
+
+alter table public.debts drop constraint if exists debts_different_people;
+alter table public.debts
+  add constraint debts_different_people check (debtor_id <> creditor_id);
+
+create index if not exists debts_debtor_id_idx on public.debts (debtor_id);
+create index if not exists debts_creditor_id_idx on public.debts (creditor_id);
 
 create or replace function public.assert_super_admin(p_email text)
 returns void
@@ -270,7 +354,7 @@ begin
   return coalesce(
     (
       select jsonb_agg(
-        jsonb_build_object('name', name, 'email', email)
+        jsonb_build_object('id', id, 'name', name, 'email', email)
         order by name
       )
       from public.app_users
@@ -446,6 +530,14 @@ begin
     raise exception 'You cannot delete your own account';
   end if;
 
+  if exists (
+    select 1
+    from public.debts
+    where debtor_id = p_id or creditor_id = p_id
+  ) then
+    raise exception 'This person still has karja. Delete those debts first.';
+  end if;
+
   delete from public.app_users where id = p_id;
 end;
 $$;
@@ -486,6 +578,81 @@ grant execute on function public.list_users(text, integer, integer) to anon, aut
 grant execute on function public.create_user(text, text, text, text, text, integer, numeric) to anon, authenticated;
 grant execute on function public.update_user(text, uuid, text, text, text, integer, numeric) to anon, authenticated;
 grant execute on function public.delete_user(text, uuid) to anon, authenticated;
+
+create or replace function public.list_debt_details()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    jsonb_agg(to_jsonb(listed) order by listed.created_at desc),
+    '[]'::jsonb
+  )
+  from (
+    select
+      d.id,
+      d.debtor_id,
+      d.creditor_id,
+      debtor.email as debtor_email,
+      debtor.name as debtor_name,
+      creditor.email as creditor_email,
+      creditor.name as creditor_name,
+      d.amount,
+      d.note,
+      d.status,
+      d.created_by_email,
+      d.created_by_name,
+      d.requested_by_email,
+      d.requested_at,
+      d.closed_by_email,
+      d.closed_at,
+      d.created_at,
+      d.updated_at
+    from public.debts d
+    join public.app_users debtor on debtor.id = d.debtor_id
+    join public.app_users creditor on creditor.id = d.creditor_id
+  ) listed;
+$$;
+
+create or replace function public.get_debt_detail(p_id uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select to_jsonb(listed)
+  from (
+    select
+      d.id,
+      d.debtor_id,
+      d.creditor_id,
+      debtor.email as debtor_email,
+      debtor.name as debtor_name,
+      creditor.email as creditor_email,
+      creditor.name as creditor_name,
+      d.amount,
+      d.note,
+      d.status,
+      d.created_by_email,
+      d.created_by_name,
+      d.requested_by_email,
+      d.requested_at,
+      d.closed_by_email,
+      d.closed_at,
+      d.created_at,
+      d.updated_at
+    from public.debts d
+    join public.app_users debtor on debtor.id = d.debtor_id
+    join public.app_users creditor on creditor.id = d.creditor_id
+    where d.id = p_id
+  ) listed;
+$$;
+
+grant execute on function public.list_debt_details() to anon, authenticated;
+grant execute on function public.get_debt_detail(uuid) to anon, authenticated;
 
 revoke all on function public.assert_super_admin(text) from public, anon, authenticated;
 revoke all on function public.user_public(public.app_users) from public, anon, authenticated;

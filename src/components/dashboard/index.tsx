@@ -129,9 +129,9 @@ const Dashboard = () => {
   const days = useMemo(() => buildDayBars(debts, email), [debts, email])
   const peerDebts = useMemo(() => {
     if (!email) return []
-    return debts.filter(
-      (debt) => isOpenDebt(debt) && !debtInvolvesEmail(debt, email),
-    )
+    return debts
+      .filter((debt) => isOpenDebt(debt) && !debtInvolvesEmail(debt, email))
+      .sort((left, right) => right.amount - left.amount)
   }, [debts, email])
 
   const netLabel =
