@@ -21,23 +21,35 @@ import {
 } from '../../services/users.service'
 import type { Debt } from '../../types/debt'
 
-const BOARDS: { id: BoardId; label: string; hint: string; tone: string }[] = [
+const BOARDS: {
+  id: BoardId
+  label: string
+  hint: string
+  summary: (days: DayRange) => string
+  tone: string
+}[] = [
   {
     id: 'receivers',
     label: 'Receivers',
     hint: 'Open money coming in',
+    summary: (days) =>
+      `These people will receive the most money in the last ${days} days.`,
     tone: 'bg-[#16a34a]',
   },
   {
     id: 'contributors',
     label: 'Contributors',
     hint: 'Already settled and paid',
+    summary: (days) =>
+      `These people have paid back the most in the last ${days} days.`,
     tone: 'bg-[#15803d]',
   },
   {
     id: 'owed',
     label: 'Top owed',
     hint: 'Still to give',
+    summary: (days) =>
+      `These people still have to give the most in the last ${days} days.`,
     tone: 'bg-[#dc2626]',
   },
 ]
@@ -167,17 +179,24 @@ const Leaderboard = () => {
         </div>
       )}
 
-      <div className="mt-8 flex flex-wrap gap-2">
-        {BOARDS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setBoard(item.id)}
-            className={board === item.id ? 'filter-chip-active' : 'filter-chip'}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div className="mt-8">
+        <div className="flex flex-wrap gap-2">
+          {BOARDS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setBoard(item.id)}
+              className={
+                board === item.id ? 'filter-chip-active' : 'filter-chip'
+              }
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-3 text-sm text-medium">
+          {BOARDS.find((item) => item.id === board)?.summary(range)}
+        </p>
       </div>
 
       <div className="mt-4 space-y-3">
