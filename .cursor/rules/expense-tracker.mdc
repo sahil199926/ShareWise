@@ -38,8 +38,8 @@ alwaysApply: true
 ## Debt status
 
 - `open` — still owed
-- `close_requested` — debtor asked admin to close
-- `closed` — admin confirmed
+- `close_requested` — debtor asked to close, and the person who is owed confirms
+- `closed` — confirmed
 
 ## Routes
 
@@ -48,6 +48,7 @@ alwaysApply: true
 | `/`              | Redirects to `/dashboard`                      |
 | `/login`         | Public                                         |
 | `/share/:email`  | Public open debts for one person               |
+| `/confirm-payment/:id` | Public link from a paid-request email    |
 | `/leaderboard`   | Public scoreboard. No login.                   |
 | `/leaderboard/:email` | Public detail for one person on the board. |
 | `/dashboard`     | Protected overview. Admin can view any person. |

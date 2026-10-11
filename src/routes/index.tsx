@@ -4,6 +4,7 @@ import AdminRoute from '../components/admin-route'
 import ProtectedRoute from '../components/protected-route'
 import LazyRoute from './lazy-route'
 import {
+  ConfirmPaymentPage,
   DashboardPage,
   DebtOverviewPage,
   LoginPage,
@@ -18,6 +19,14 @@ export const routes: RouteObject[] = [
   {
     path: '/',
     element: <Navigate to="/dashboard" replace />,
+  },
+  {
+    path: '/confirm-payment/:id',
+    element: (
+      <LazyRoute>
+        <ConfirmPaymentPage />
+      </LazyRoute>
+    ),
   },
   {
     path: '/share/:email',

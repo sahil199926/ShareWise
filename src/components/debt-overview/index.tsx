@@ -14,6 +14,7 @@ import { copyTextToClipboard } from '../../lib/clipboard'
 import { buildDebtShareText, debtInvolvesEmail } from '../../lib/debt-utils'
 import { filterDebtsByDays, type DayRange } from '../../lib/leaderboard'
 import { mergePeople } from '../../lib/overview-stats'
+import { notifyDebtMail } from '../../services/mail.service'
 import {
   createDebt,
   deleteDebt,
@@ -152,8 +153,13 @@ const DebtOverview = () => {
         await updateDebt(editingDebt.id, input)
         setSuccess('Debt updated.')
       } else {
-        await createDebt(user, input)
-        setSuccess('Debt added.')
+        const created = await createDebt(user, input)
+        const mail = await notifyDebtMail('debt_created', created)
+        setSuccess(
+          mail.sent
+            ? 'Debt added. Both people were emailed.'
+            : `Debt added. ${mail.message}`,
+        )
       }
       await loadDebts()
       setIsModalOpen(false)
@@ -368,10 +374,16 @@ const DebtOverview = () => {
                   }}
                   onRequestClose={(next) => {
                     if (!user) return
-                    void runAction(
-                      () => requestDebtClose(next, user),
-                      'Asked admin to close this debt.',
-                    )
+                    void runAction(async () => {
+                      const updated = await requestDebtClose(next, user)
+                      const mail = await notifyDebtMail(
+                        'payment_requested',
+                        updated,
+                      )
+                      if (!mail.sent) {
+                        throw new Error(`Paid request saved. ${mail.message}`)
+                      }
+                    }, 'Paid request sent. They were emailed to confirm.')
                   }}
                   onMarkClosed={(next) => {
                     if (!user) return

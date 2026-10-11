@@ -1,6 +1,11 @@
 import { supabase } from '../lib/supabase'
 import { mapDebtRow } from '../lib/debt-utils'
-import { DEBT_STATUS, type Debt, type DebtInput, type DebtRow } from '../types/debt'
+import {
+  DEBT_STATUS,
+  type Debt,
+  type DebtInput,
+  type DebtRow,
+} from '../types/debt'
 import type { User } from '../types/auth'
 
 const TABLE = 'debts'
@@ -27,6 +32,46 @@ const loadDebts = async (): Promise<Debt[]> => {
 }
 
 export const listDebts = loadDebts
+
+export const getDebt = async (id: string) => {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (error) {
+    if (error.message.includes('uuid')) return null
+    throw new Error(toDebtError(error.message, 'Failed to load this debt'))
+  }
+
+  return data ? mapDebtRow(data as DebtRow) : null
+}
+
+export const confirmDebtPayment = async (debt: Debt) => {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update({
+      status: DEBT_STATUS.CLOSED,
+      closed_by_email: debt.creditorEmail.trim().toLowerCase(),
+      closed_at: new Date().toISOString(),
+    })
+    .eq('id', debt.id)
+    .eq('status', DEBT_STATUS.CLOSE_REQUESTED)
+    .select('*')
+    .maybeSingle()
+
+  if (error || !data) {
+    throw new Error(
+      toDebtError(
+        error?.message,
+        'This payment is not waiting to be confirmed.',
+      ),
+    )
+  }
+
+  return mapDebtRow(data as DebtRow)
+}
 
 export const createDebt = async (admin: User, input: DebtInput) => {
   const { data, error } = await supabase
