@@ -6,6 +6,8 @@ type ConfirmModalProps = {
   title?: string
   message: string
   confirmLabel?: string
+  pendingLabel?: string
+  tone?: 'danger' | 'primary'
   isConfirming?: boolean
   onCancel: () => void
   onConfirm: () => void
@@ -16,6 +18,8 @@ const ConfirmModal = ({
   title = 'Are you sure?',
   message,
   confirmLabel = 'Delete',
+  pendingLabel = 'Deleting...',
+  tone = 'danger',
   isConfirming = false,
   onCancel,
   onConfirm,
@@ -53,11 +57,15 @@ const ConfirmModal = ({
         </button>
         <button
           type="button"
-          className="btn-danger px-5 py-2 text-sm"
+          className={
+            tone === 'primary'
+              ? 'btn-primary px-5 py-2 text-sm'
+              : 'btn-danger px-5 py-2 text-sm'
+          }
           onClick={onConfirm}
           disabled={isConfirming}
         >
-          {isConfirming ? 'Deleting...' : confirmLabel}
+          {isConfirming ? pendingLabel : confirmLabel}
         </button>
       </div>
     </Modal>

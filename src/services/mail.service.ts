@@ -1,6 +1,6 @@
 import type { Debt } from '../types/debt'
 
-type MailKind = 'debt_created' | 'payment_requested'
+type MailKind = 'debt_created' | 'payment_requested' | 'debt_closed'
 
 export const notifyDebtMail = async (kind: MailKind, debt: Debt) => {
   try {

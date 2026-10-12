@@ -2,6 +2,7 @@ import { supabase } from '../lib/supabase'
 import {
   canChangeDebtStatus,
   canRequestDebtClose,
+  isDebtCreditor,
   REOPEN_WINDOW_MS,
 } from '../lib/debt-permissions'
 import { mapDebtRow } from '../lib/debt-utils'
@@ -57,12 +58,16 @@ const readSavedDebt = async (id: string) => {
   return debt
 }
 
-export const confirmDebtPayment = async (debt: Debt) => {
+export const confirmDebtPayment = async (debt: Debt, user: User) => {
+  if (!isDebtCreditor(debt, user.email)) {
+    throw new Error('Only the person who will receive this can confirm it.')
+  }
+
   const { data, error } = await supabase
     .from(TABLE)
     .update({
       status: DEBT_STATUS.CLOSED,
-      closed_by_email: debt.creditorEmail.trim().toLowerCase(),
+      closed_by_email: user.email.trim().toLowerCase(),
       closed_at: new Date().toISOString(),
     })
     .eq('id', debt.id)

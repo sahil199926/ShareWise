@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import AppHeader from '../app-header'
 import ConfirmModal from '../confirm-modal'
 import DayRangeFilter from '../day-range-filter'
@@ -48,6 +49,7 @@ const matchesFilter = (debt: Debt, filter: FilterKey) => {
 }
 
 const DebtOverview = () => {
+  const reduceMotion = useReducedMotion()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -73,6 +75,13 @@ const DebtOverview = () => {
   const [copied, setCopied] = useState(false)
   const [shareText, setShareText] = useState('')
   const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null)
+  const [debtToClose, setDebtToClose] = useState<Debt | null>(null)
+  const [leaveTarget, setLeaveTarget] = useState<
+    Record<string, { x: number; y: number }>
+  >({})
+  const [tabPulse, setTabPulse] = useState<FilterKey | null>(null)
+  const filterRefs = useRef<Partial<Record<FilterKey, HTMLButtonElement>>>({})
+  const cardRefs = useRef<Partial<Record<string, HTMLDivElement>>>({})
   const faces = usePeopleFaces(
     debts.flatMap((debt) => [debt.debtorEmail, debt.creditorEmail]),
   )
@@ -135,6 +144,28 @@ const DebtOverview = () => {
     logout()
     navigate('/login', { replace: true })
   }
+
+  const aimCardAtTab = (debtId: string, tab: FilterKey) => {
+    const card = cardRefs.current[debtId]
+    const target = filterRefs.current[tab]
+    const offset = { x: 0, y: -72 }
+
+    if (card && target) {
+      const from = card.getBoundingClientRect()
+      const to = target.getBoundingClientRect()
+      offset.x = to.left + to.width / 2 - (from.left + from.width / 2)
+      offset.y = to.top + to.height / 2 - (from.top + from.height / 2)
+    }
+
+    setLeaveTarget((current) => ({ ...current, [debtId]: offset }))
+    setTabPulse(tab)
+  }
+
+  useEffect(() => {
+    if (!tabPulse) return
+    const timer = window.setTimeout(() => setTabPulse(null), 700)
+    return () => window.clearTimeout(timer)
+  }, [tabPulse])
 
   const runAction = async (work: () => Promise<unknown>, message: string) => {
     setActionLoading(true)
@@ -315,19 +346,28 @@ const DebtOverview = () => {
               ) : null}
               <div className="flex flex-wrap gap-2">
                 {FILTERS.map((item) => (
-                  <button
+                  <motion.button
                     key={item.id}
+                    ref={(node) => {
+                      if (node) filterRefs.current[item.id] = node
+                    }}
                     type="button"
                     onClick={() => {
                       setFilter(item.id)
                       setPage(1)
                     }}
+                    animate={
+                      tabPulse === item.id
+                        ? { scale: [1, 1.08, 1] }
+                        : { scale: 1 }
+                    }
+                    transition={{ duration: reduceMotion ? 0 : 0.45 }}
                     className={
                       filter === item.id ? 'filter-chip-active' : 'filter-chip'
                     }
                   >
                     {item.label}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
@@ -346,69 +386,120 @@ const DebtOverview = () => {
 
           {isLoading ? (
             <DebtGridSkeleton />
-          ) : pagedDebts.length === 0 ? (
-            <div className="glass-card px-6 py-16 text-center">
-              <p className="text-sm font-medium text-medium">
-                No debts in this view
-              </p>
-              <p className="mt-1 text-sm text-low">
-                {isAdmin
-                  ? 'Add a karja, or pick another person.'
-                  : 'Nothing here for this filter yet.'}
-              </p>
-            </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {pagedDebts.map((debt) => (
-                <DebtCard
-                  key={debt.id}
-                  debt={debt}
-                  faces={faces}
-                  currentUserEmail={user?.email}
-                  isAdmin={isAdmin}
-                  actionLoading={actionLoading}
-                  onEdit={(next) => {
-                    setEditingDebt(next)
-                    setIsModalOpen(true)
-                  }}
-                  onDelete={setDebtToDelete}
-                  onRequestClose={(next) => {
-                    if (!user) return
-                    void runAction(async () => {
-                      const updated = await requestDebtClose(next, user)
-                      const mail = await notifyDebtMail(
-                        'payment_requested',
-                        updated,
-                      )
-                      if (!mail.sent) {
-                        throw new Error(`Paid request saved. ${mail.message}`)
-                      }
-                    }, 'Paid request sent. They were emailed to confirm.')
-                  }}
-                  onMarkClosed={(next) => {
-                    if (!user) return
-                    void runAction(
-                      () =>
-                        setDebtStatus(
-                          next.id,
-                          DEBT_STATUS.CLOSED,
-                          user,
-                          isAdmin,
-                        ),
-                      `Closed ${next.debtorName}'s debt.`,
+            <>
+              {pagedDebts.length === 0 ? (
+                <div className="glass-card px-6 py-16 text-center">
+                  <p className="text-sm font-medium text-medium">
+                    No debts in this view
+                  </p>
+                  <p className="mt-1 text-sm text-low">
+                    {isAdmin
+                      ? 'Add a karja, or pick another person.'
+                      : 'Nothing here for this filter yet.'}
+                  </p>
+                </div>
+              ) : null}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <AnimatePresence mode="popLayout" initial={false}>
+                  {pagedDebts.map((debt) => {
+                    const offset = leaveTarget[debt.id]
+
+                    return (
+                      <motion.div
+                        key={debt.id}
+                        layout
+                        ref={(node) => {
+                          if (node) cardRefs.current[debt.id] = node
+                        }}
+                        className="min-w-0"
+                        style={{ zIndex: offset ? 30 : 1 }}
+                        initial={false}
+                        exit={
+                          reduceMotion || !offset
+                            ? { opacity: 0, transition: { duration: 0 } }
+                            : {
+                                x: offset.x,
+                                y: offset.y,
+                                scale: 0.14,
+                                opacity: 0,
+                                transition: {
+                                  duration: 0.62,
+                                  ease: [0.22, 1, 0.36, 1],
+                                },
+                              }
+                        }
+                      >
+                        <DebtCard
+                          debt={debt}
+                          faces={faces}
+                          currentUserEmail={user?.email}
+                          isAdmin={isAdmin}
+                          actionLoading={actionLoading}
+                          onEdit={(next) => {
+                            setEditingDebt(next)
+                            setIsModalOpen(true)
+                          }}
+                          onDelete={setDebtToDelete}
+                          onRequestClose={(next) => {
+                            if (!user) return
+                            aimCardAtTab(next.id, 'requested')
+                            void (async () => {
+                              let mailWarning = ''
+                              const didSave = await runAction(async () => {
+                                const updated = await requestDebtClose(
+                                  next,
+                                  user,
+                                )
+                                const mail = await notifyDebtMail(
+                                  'payment_requested',
+                                  updated,
+                                )
+                                if (!mail.sent) mailWarning = mail.message
+                              }, 'Paid request sent. They were emailed to confirm.')
+                              if (!didSave) {
+                                setLeaveTarget((current) => {
+                                  const nextTargets = { ...current }
+                                  delete nextTargets[next.id]
+                                  return nextTargets
+                                })
+                                return
+                              }
+                              if (mailWarning) {
+                                setSuccess('')
+                                setError(`Paid request saved. ${mailWarning}`)
+                              }
+                            })()
+                          }}
+                          onMarkClosed={setDebtToClose}
+                          onReopen={(next) => {
+                            if (!user) return
+                            aimCardAtTab(next.id, 'open')
+                            void runAction(
+                              () =>
+                                setDebtStatus(
+                                  next.id,
+                                  DEBT_STATUS.OPEN,
+                                  user,
+                                  isAdmin,
+                                ),
+                              'Moved back to open.',
+                            ).then((didMove) => {
+                              if (didMove) return
+                              setLeaveTarget((current) => {
+                                const nextTargets = { ...current }
+                                delete nextTargets[next.id]
+                                return nextTargets
+                              })
+                            })
+                          }}
+                        />
+                      </motion.div>
                     )
-                  }}
-                  onReopen={(next) => {
-                    if (!user) return
-                    void runAction(
-                      () =>
-                        setDebtStatus(next.id, DEBT_STATUS.OPEN, user, isAdmin),
-                      'Moved back to open.',
-                    )
-                  }}
-                />
-              ))}
-            </div>
+                  })}
+                </AnimatePresence>
+              </div>
+            </>
           )}
 
           {pagedDebts.length > 0 ? (
@@ -427,6 +518,53 @@ const DebtOverview = () => {
           ) : null}
         </section>
       </main>
+
+      <ConfirmModal
+        isOpen={Boolean(debtToClose)}
+        message={
+          debtToClose
+            ? `Close the ${formatRupee(debtToClose.amount)} debt where ${debtToClose.debtorName} ${debtToClose.status === DEBT_STATUS.CLOSE_REQUESTED ? 'is giving' : 'will give'} ${debtToClose.creditorName}? Both people will get an email.`
+            : ''
+        }
+        confirmLabel="Mark closed"
+        pendingLabel="Closing..."
+        tone="primary"
+        isConfirming={actionLoading}
+        onCancel={() => {
+          if (!actionLoading) setDebtToClose(null)
+        }}
+        onConfirm={() => {
+          if (!debtToClose || !user) return
+          const debt = debtToClose
+          aimCardAtTab(debt.id, 'closed')
+          setDebtToClose(null)
+          void (async () => {
+            let mailWarning = ''
+            const didClose = await runAction(async () => {
+              const updated = await setDebtStatus(
+                debt.id,
+                DEBT_STATUS.CLOSED,
+                user,
+                isAdmin,
+              )
+              const mail = await notifyDebtMail('debt_closed', updated)
+              if (!mail.sent) mailWarning = mail.message
+            }, 'Debt closed. Both people were emailed.')
+            if (!didClose) {
+              setLeaveTarget((current) => {
+                const next = { ...current }
+                delete next[debt.id]
+                return next
+              })
+              return
+            }
+            if (mailWarning) {
+              setSuccess('')
+              setError(`Debt closed. ${mailWarning}`)
+            }
+          })()
+        }}
+      />
 
       <ConfirmModal
         isOpen={Boolean(debtToDelete)}

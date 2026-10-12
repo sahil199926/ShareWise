@@ -19,9 +19,14 @@ const Login = () => {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const from =
-    (location.state as { from?: { pathname: string } } | null)?.from
-      ?.pathname ?? '/dashboard'
+  const fromLocation = (
+    location.state as {
+      from?: { pathname?: string; search?: string; hash?: string }
+    } | null
+  )?.from
+  const from = fromLocation?.pathname
+    ? `${fromLocation.pathname}${fromLocation.search ?? ''}${fromLocation.hash ?? ''}`
+    : '/dashboard'
 
   const finishSignIn = useCallback(
     (attempt: Promise<Awaited<ReturnType<typeof signInWithGoogle>>>) => {

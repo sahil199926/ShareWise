@@ -23,9 +23,11 @@ export const routes: RouteObject[] = [
   {
     path: '/confirm-payment/:id',
     element: (
-      <LazyRoute>
-        <ConfirmPaymentPage />
-      </LazyRoute>
+      <ProtectedRoute>
+        <LazyRoute>
+          <ConfirmPaymentPage />
+        </LazyRoute>
+      </ProtectedRoute>
     ),
   },
   {
