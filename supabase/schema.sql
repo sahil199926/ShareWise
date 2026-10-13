@@ -656,3 +656,60 @@ grant execute on function public.get_debt_detail(uuid) to anon, authenticated;
 
 revoke all on function public.assert_super_admin(text) from public, anon, authenticated;
 revoke all on function public.user_public(public.app_users) from public, anon, authenticated;
+
+-- Server-only audit trail for the daily payment reminder job.
+create table if not exists public.daily_reminder_deliveries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.app_users (id) on delete cascade,
+  reminder_date date not null,
+  status text not null check (status in ('sending', 'sent', 'failed')),
+  debt_count integer not null default 0 check (debt_count >= 0),
+  total_amount numeric(12, 2) not null default 0 check (total_amount >= 0),
+  provider_email_id text,
+  error_message text,
+  attempt_count integer not null default 1 check (attempt_count > 0),
+  sent_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, reminder_date)
+);
+
+alter table public.daily_reminder_deliveries enable row level security;
+revoke all on table public.daily_reminder_deliveries
+from public, anon, authenticated;
+grant select, insert, update on table public.daily_reminder_deliveries
+to service_role;
+
+-- Only the Edge Function's privileged client may read reminder recipients.
+create or replace function public.daily_reminder_candidates()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'debt_id', debt.id,
+        'debtor_id', debtor.id,
+        'debtor_name', debtor.name,
+        'debtor_email', debtor.email,
+        'creditor_name', creditor.name,
+        'amount', debt.amount,
+        'note', debt.note,
+        'created_at', debt.created_at
+      )
+      order by debtor.name, creditor.name, debt.created_at
+    ),
+    '[]'::jsonb
+  )
+  from public.debts debt
+  join public.app_users debtor on debtor.id = debt.debtor_id
+  join public.app_users creditor on creditor.id = debt.creditor_id
+  where debt.status = 'open';
+$$;
+
+revoke all on function public.daily_reminder_candidates()
+from public, anon, authenticated;
+grant execute on function public.daily_reminder_candidates() to service_role;

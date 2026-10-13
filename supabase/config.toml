@@ -1,0 +1,4 @@
+project_id = "karja-tracker"
+
+[functions.daily-debt-reminder]
+verify_jwt = false

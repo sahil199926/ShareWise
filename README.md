@@ -71,4 +71,43 @@ export default defineConfig([
   },
 ])
 ```
+
 # ShareWise
+
+## Daily open-payment reminders
+
+Karja Tracker includes a Supabase Edge Function that emails one daily digest to
+each person who has at least one debt with `status = 'open'`. It uses Resend and
+runs at 9:00 AM India time through Supabase Cron.
+
+1. Run `supabase/schema.sql` in the Supabase SQL editor.
+2. Link the local project and deploy the function:
+
+   ```bash
+   supabase link --project-ref YOUR_PROJECT_REF
+   supabase functions deploy daily-debt-reminder
+   ```
+
+3. Add these Edge Function secrets in Supabase Dashboard → Edge Functions →
+   Secrets:
+
+   ```text
+   RESEND_API_KEY=re_...
+   MAIL_FROM=reminders@your-verified-domain.com
+   APP_URL=https://your-karja-tracker.example
+   REMINDER_TIME_ZONE=Asia/Kolkata
+   ```
+
+   `REMINDER_TIME_ZONE` is optional and defaults to `Asia/Kolkata`. The Resend
+   sender domain used by `MAIL_FROM` must be verified.
+
+4. In `supabase/daily-reminder-cron.sql`, replace the project URL and Supabase
+   secret key placeholders, then run that file once in the SQL editor. Use a
+   named secret key dedicated to this cron job when possible.
+
+   The included schedule is `30 3 * * *`, which is 9:00 AM in India. Supabase
+   Cron evaluates this expression in UTC.
+
+The function records each attempt in `daily_reminder_deliveries` and uses a
+Resend idempotency key, so retries do not send the same user's digest twice on
+the same day. Debts in `close_requested` or `closed` are intentionally excluded.
