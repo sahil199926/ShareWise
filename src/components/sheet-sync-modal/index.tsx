@@ -249,7 +249,7 @@ const SheetSyncModal = ({
 
               {isLoading ? (
                 <div className="mt-5 grid gap-2 sm:grid-cols-2">
-                  {Array.from({ length: 6 }).map((_, index) => (
+                  {Array.from({ length: 5 }).map((_, index) => (
                     <div key={index} className="skeleton h-20" />
                   ))}
                 </div>

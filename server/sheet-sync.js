@@ -35,7 +35,7 @@ export const handleSheetSyncRequest = async (body, env = process.env) => {
     action,
     spreadsheetId,
     page: positiveInteger(body?.page, 1, 100000),
-    pageSize: positiveInteger(body?.pageSize, 20, 20),
+    pageSize: positiveInteger(body?.pageSize, 5, 5),
     search: text(body?.search).slice(0, 120),
     sheetId: text(body?.sheetId),
     secret: text(env.SHEET_SYNC_SECRET),

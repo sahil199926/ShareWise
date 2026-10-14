@@ -34,7 +34,7 @@ export const listExpenseSheets = (
     action: 'listSheets',
     requesterEmail,
     page,
-    pageSize: 20,
+    pageSize: 5,
     search,
   })
 

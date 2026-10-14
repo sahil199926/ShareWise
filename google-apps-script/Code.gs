@@ -44,7 +44,7 @@ function isGridSheet(sheet) {
 function listExpenseSheets(body) {
   const spreadsheet = openExpenseSpreadsheet(body.spreadsheetId)
   const page = Math.max(1, Number(body.page) || 1)
-  const pageSize = Math.min(20, Math.max(1, Number(body.pageSize) || 20))
+  const pageSize = Math.min(5, Math.max(1, Number(body.pageSize) || 5))
   const search = normalizeText(body.search)
   const sheets = spreadsheet
     .getSheets()
