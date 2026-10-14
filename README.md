@@ -111,3 +111,24 @@ runs at 9:00 AM India time through Supabase Cron.
 The function records each attempt in `daily_reminder_deliveries` and uses a
 Resend idempotency key, so retries do not send the same user's digest twice on
 the same day. Debts in `close_requested` or `closed` are intentionally excluded.
+
+## Google Sheet debt import
+
+The Debts page includes a super-admin-only **Sync with sheet** flow. It reads a
+selected tab, validates the `TOTAL`, `GIVEN`, and `pending` rows, matches sheet
+names to people, previews the resulting debts, and creates them only after
+approval. Each tab can be imported once.
+
+1. Run `supabase/schema.sql` in the Supabase SQL editor.
+2. Paste `google-apps-script/Code.gs` into the Apps Script project attached to
+   the expense workbook.
+3. In Apps Script project settings, add a Script Property named
+   `SHEET_SYNC_SECRET` with a long random value.
+4. Deploy the script as a Web App that executes as the owner and copy its `/exec`
+   URL.
+5. Add the server-only variables from `.env.example` to `.env` locally and to
+   the Vercel project environment. `SHEET_SYNC_SECRET` must match the Script
+   Property. Do not prefix these variables with `VITE_`.
+
+The Apps Script endpoint is read-only. It lists tab metadata and reads only the
+selected tab, with a limit of 500 rows and 100 columns per tab.

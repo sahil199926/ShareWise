@@ -2,6 +2,7 @@ import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { handleNotifyRequest } from './server/notify.js'
+import { handleSheetSyncRequest } from './server/sheet-sync.js'
 import { buildSharePreview, isShareCrawler } from './server/share-preview.js'
 
 const mailApi = (): Plugin => ({
@@ -19,7 +20,7 @@ const mailApi = (): Plugin => ({
       })
       req.on('end', () => {
         const env = loadEnv(server.config.mode, process.cwd(), '')
-        let body: unknown = {}
+        let body: unknown
 
         try {
           body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')
@@ -41,6 +42,37 @@ const mailApi = (): Plugin => ({
             res.setHeader('Content-Type', 'application/json')
             res.end(JSON.stringify({ error: 'The email could not be sent.' }))
           })
+      })
+    })
+
+    server.middlewares.use('/api/sheet-sync', (req, res, next) => {
+      if (req.method !== 'POST') {
+        next()
+        return
+      }
+
+      const chunks: Buffer[] = []
+      req.on('data', (chunk) => {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+      })
+      req.on('end', () => {
+        const env = loadEnv(server.config.mode, process.cwd(), '')
+        let body: unknown
+
+        try {
+          body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')
+        } catch {
+          res.statusCode = 400
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ error: 'This sheet request is not valid.' }))
+          return
+        }
+
+        void handleSheetSyncRequest(body, env).then((result) => {
+          res.statusCode = result.status
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify(result.body))
+        })
       })
     })
 

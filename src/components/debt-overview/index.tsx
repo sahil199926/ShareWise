@@ -9,6 +9,7 @@ import DebtFormModal from '../debt-form-modal'
 import ExpenseFormModal from '../expense-form-modal'
 import Pagination from '../pagination'
 import SelectField from '../select-field'
+import SheetSyncModal from '../sheet-sync-modal'
 import { DebtGridSkeleton } from '../skeleton'
 import { DEBT_PAGE_SIZE } from '../../constants/pagination'
 import { useAuth } from '../../hooks/use-auth'
@@ -32,9 +33,11 @@ import {
   setDebtStatus,
   updateDebt,
 } from '../../services/debts.service'
+import { createSheetImportDebts } from '../../services/sheet-sync.service'
 import { listMasterUserOptions } from '../../services/users.service'
 import { DEBT_STATUS, type Debt, type DebtInput } from '../../types/debt'
 import type { ExpenseSubmission } from '../../types/expense'
+import type { SheetSyncSubmission } from '../../types/sheet-sync'
 import type { MasterUserOption } from '../../types/user-option'
 
 type FilterKey = 'open' | 'requested' | 'closed'
@@ -74,6 +77,7 @@ const DebtOverview = () => {
   const [actionLoading, setActionLoading] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false)
+  const [isSheetSyncOpen, setIsSheetSyncOpen] = useState(false)
   const [editingDebt, setEditingDebt] = useState<Debt | undefined>()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -242,6 +246,35 @@ const DebtOverview = () => {
     }
   }
 
+  const handleSheetSync = async (input: SheetSyncSubmission) => {
+    if (!user) return
+
+    setIsSubmitting(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const created = await createSheetImportDebts(user, input)
+      const mail = await notifyExpenseMail(
+        {
+          note: input.note,
+          expenseDate: input.expenseDate,
+          totalAmount: created.reduce((sum, debt) => sum + debt.amount, 0),
+        },
+        created,
+      )
+      setSuccess(
+        mail.sent
+          ? `${input.sheetTitle} synced. ${created.length} ${created.length === 1 ? 'debt' : 'debts'} created and ${mail.count} ${mail.count === 1 ? 'person was' : 'people were'} emailed.`
+          : `${input.sheetTitle} synced. ${created.length} ${created.length === 1 ? 'debt was' : 'debts were'} created. ${mail.message}`,
+      )
+      await loadDebts()
+      setIsSheetSyncOpen(false)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const people = useMemo(() => {
     const self =
       user?.email && user.name ? [{ name: user.name, email: user.email }] : []
@@ -300,6 +333,13 @@ const DebtOverview = () => {
         actions={
           isAdmin ? (
             <div className="flex flex-col gap-2 min-[420px]:flex-row">
+              <button
+                type="button"
+                onClick={() => setIsSheetSyncOpen(true)}
+                className="btn-secondary"
+              >
+                Sync with sheet
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -648,6 +688,20 @@ const DebtOverview = () => {
               isSubmitting={isSubmitting}
               onClose={() => setIsExpenseModalOpen(false)}
               onSubmit={handleCreateExpense}
+            />
+          ) : null}
+          {isSheetSyncOpen && user ? (
+            <SheetSyncModal
+              isOpen
+              user={user}
+              users={users}
+              isSubmitting={isSubmitting}
+              onClose={() => setIsSheetSyncOpen(false)}
+              onAddPerson={() => {
+                setIsSheetSyncOpen(false)
+                navigate('/master')
+              }}
+              onSubmit={handleSheetSync}
             />
           ) : null}
         </>
