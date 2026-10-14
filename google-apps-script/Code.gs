@@ -130,6 +130,13 @@ function previewExpenseSheet(body) {
       })
     }
   })
+  if (labelRows.advance.length > 1) {
+    issues.push({
+      code: 'summary_advance',
+      severity: 'error',
+      message: 'Found more than one ADVANCE summary row.',
+    })
+  }
 
   const formulaError = values.some(function (row) {
     return row.some(function (value) {
@@ -176,30 +183,46 @@ function previewExpenseSheet(body) {
     if (!hasSummaryRows) continue
     const total = parseMoney(values[labelRows.total[0]][column])
     const given = parseMoney(values[labelRows.given[0]][column])
+    const advance =
+      labelRows.advance.length === 1
+        ? parseMoney(values[labelRows.advance[0]][column])
+        : 0
     const pending = parseMoney(values[labelRows.pending[0]][column])
-    if (total === null || given === null || pending === null) {
+    if (
+      total === null ||
+      given === null ||
+      advance === null ||
+      pending === null
+    ) {
       issues.push({
         code: 'invalid_amount',
         severity: 'error',
-        message: rawName + ' has a non-numeric TOTAL, GIVEN, or pending value.',
+        message:
+          rawName +
+          ' has a value without a usable number in TOTAL, GIVEN, ADVANCE, or pending.',
       })
       continue
     }
-    if (Math.abs(total - given - pending) > 0.01) {
+    const effectiveGiven = roundMoney(given + advance)
+    if (Math.abs(total - effectiveGiven - pending) > 0.01) {
       issues.push({
         code: 'person_reconciliation',
         severity: 'error',
-        message: rawName + ' does not satisfy pending = TOTAL - GIVEN.',
+        message:
+          rawName +
+          ' does not satisfy pending = TOTAL - GIVEN - ADVANCE.',
       })
     }
     people.push({
       rawName: rawName,
       total: total,
-      given: given,
+      given: effectiveGiven,
       pending: pending,
       requiresReview: /[+&/,]/.test(rawName),
     })
   }
+
+  normalizePendingBalances(people)
 
   let totalAmount = 0
   let givenAmount = 0
@@ -220,7 +243,7 @@ function previewExpenseSheet(body) {
     issues.push({
       code: 'unbalanced_given',
       severity: 'error',
-      message: 'TOTAL and GIVEN do not reconcile.',
+      message: 'TOTAL and GIVEN plus ADVANCE do not reconcile.',
     })
   }
 
@@ -272,7 +295,7 @@ function findHeaderRow(values) {
 }
 
 function findSummaryRows(values, headerRowIndex, itemsColumn) {
-  const result = { total: [], given: [], pending: [] }
+  const result = { total: [], given: [], advance: [], pending: [] }
   for (let row = headerRowIndex + 1; row < values.length; row += 1) {
     const label = normalizeText(values[row][itemsColumn])
     if (Object.prototype.hasOwnProperty.call(result, label)) {
@@ -286,10 +309,53 @@ function parseMoney(value) {
   const raw = String(value === undefined || value === null ? '' : value).trim()
   if (!raw) return 0
   const negativeParentheses = /^\(.*\)$/.test(raw)
-  const cleaned = raw.replace(/[₹,\s]/g, '').replace(/[()]/g, '')
-  if (!/^-?\d+(\.\d{1,2})?$/.test(cleaned)) return null
-  const parsed = Number(cleaned)
-  return roundMoney(negativeParentheses ? -parsed : parsed)
+  const cleaned = raw
+    .replace(/[−–—]/g, '-')
+    .replace(/[₹,\s]/g, '')
+    .replace(/[()]/g, '')
+
+  // A note may sit beside an amount (for example "paid5000"), but text on
+  // its own must never become money. More than one number is ambiguous.
+  if (!/\d/.test(cleaned) || /%/.test(cleaned)) return null
+  const numericParts = cleaned.match(/[+-]?(?:\d+(?:\.\d+)?|\.\d+)/g) || []
+  if (numericParts.length !== 1) return null
+
+  const parsed = Number(numericParts[0])
+  if (!Number.isFinite(parsed)) return null
+  return negativeParentheses && parsed > 0 ? -parsed : parsed
+}
+
+function normalizePendingBalances(people) {
+  const rawPending = people.reduce(function (sum, person) {
+    return sum + person.pending
+  }, 0)
+  const pendingPaise = people.map(function (person) {
+    return Math.round(person.pending * 100)
+  })
+  const roundingDrift = pendingPaise.reduce(function (sum, paise) {
+    return sum + paise
+  }, 0)
+
+  if (
+    Math.abs(rawPending) <= 0.01 &&
+    roundingDrift !== 0 &&
+    Math.abs(roundingDrift) <= people.length
+  ) {
+    let adjustmentIndex = 0
+    for (let index = 1; index < people.length; index += 1) {
+      if (
+        Math.abs(people[index].pending) >
+        Math.abs(people[adjustmentIndex].pending)
+      ) {
+        adjustmentIndex = index
+      }
+    }
+    pendingPaise[adjustmentIndex] -= roundingDrift
+  }
+
+  people.forEach(function (person, index) {
+    person.pending = pendingPaise[index] / 100
+  })
 }
 
 function normalizeText(value) {
