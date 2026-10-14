@@ -37,6 +37,10 @@ function openExpenseSpreadsheet(spreadsheetId) {
   return SpreadsheetApp.openById(id)
 }
 
+function isGridSheet(sheet) {
+  return sheet.getType() === SpreadsheetApp.SheetType.GRID
+}
+
 function listExpenseSheets(body) {
   const spreadsheet = openExpenseSpreadsheet(body.spreadsheetId)
   const page = Math.max(1, Number(body.page) || 1)
@@ -45,7 +49,10 @@ function listExpenseSheets(body) {
   const sheets = spreadsheet
     .getSheets()
     .filter(function (sheet) {
-      return !search || normalizeText(sheet.getName()).indexOf(search) !== -1
+      return (
+        isGridSheet(sheet) &&
+        (!search || normalizeText(sheet.getName()).indexOf(search) !== -1)
+      )
     })
     .map(function (sheet) {
       return {
@@ -77,6 +84,9 @@ function previewExpenseSheet(body) {
     return String(candidate.getSheetId()) === wantedId
   })
   if (!sheet) throw new Error('That sheet no longer exists. Refresh the list.')
+  if (!isGridSheet(sheet)) {
+    throw new Error('Only regular spreadsheet tabs can be imported.')
+  }
 
   const rowCount = sheet.getLastRow()
   const columnCount = sheet.getLastColumn()
