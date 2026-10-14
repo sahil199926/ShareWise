@@ -289,6 +289,242 @@
     @apply m-auto w-full max-w-md rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur-xl;
   }
 
+  .expense-sheet-overlay {
+    align-items: flex-end;
+    overflow: hidden;
+    padding: 0;
+    background: color-mix(in srgb, var(--kt-money-deep) 24%, transparent);
+  }
+
+  .expense-sheet {
+    --expense-inline: clamp(1rem, 4.5vw, 1.5rem);
+    margin: auto 0 0;
+    height: min(92dvh, 52rem);
+    max-height: calc(100dvh - 0.5rem);
+    max-width: none;
+    overflow: hidden;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 1.75rem 1.75rem 0 0;
+    background: color-mix(in srgb, var(--kt-surface) 98%, white);
+    padding: 0;
+    box-shadow: 0 -20px 60px -30px rgba(20, 83, 45, 0.55);
+  }
+
+  .expense-sheet-shell {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .expense-drawer-handle {
+    width: 2.5rem;
+    height: 0.25rem;
+    flex: none;
+    align-self: center;
+    margin-top: 0.5rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--kt-money-deep) 24%, transparent);
+  }
+
+  .expense-sheet-header {
+    flex: none;
+    border-bottom: 1px solid var(--kt-divider);
+    padding: 0.75rem var(--expense-inline) 0.875rem;
+  }
+
+  .expense-sheet-title {
+    margin-top: 0.25rem;
+    font-size: clamp(1.375rem, 6vw, 1.75rem);
+    font-weight: 650;
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+    color: var(--kt-text-high);
+  }
+
+  .expense-sheet-body {
+    min-height: 0;
+    flex: 1;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 1.125rem var(--expense-inline) 1.5rem;
+    scrollbar-gutter: stable;
+  }
+
+  .expense-sheet-body .field-label {
+    font-size: 0.8125rem;
+    font-weight: 650;
+    line-height: 1.25rem;
+  }
+
+  .expense-sheet-body .input-field {
+    min-height: 3rem;
+    border-color: color-mix(in srgb, var(--kt-money) 22%, transparent);
+    border-radius: 0.875rem;
+    background: rgba(255, 255, 255, 0.9);
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+
+  .expense-section-title {
+    font-size: clamp(1.125rem, 5vw, 1.375rem);
+    font-weight: 650;
+    line-height: 1.3;
+    letter-spacing: -0.015em;
+    color: var(--kt-text-high);
+  }
+
+  .expense-helper {
+    margin-top: 0.375rem;
+    max-width: 40rem;
+    font-size: 0.875rem;
+    line-height: 1.45rem;
+    color: var(--kt-text-low);
+  }
+
+  .expense-person-row {
+    display: flex;
+    min-height: 4.25rem;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.625rem 0.875rem;
+  }
+
+  .expense-sheet-footer {
+    flex: none;
+    border-top: 1px solid var(--kt-divider);
+    background: rgba(255, 255, 255, 0.94);
+    padding: 0.75rem var(--expense-inline)
+      max(0.75rem, env(safe-area-inset-bottom));
+    box-shadow: 0 -12px 30px -26px rgba(20, 83, 45, 0.7);
+    backdrop-filter: blur(20px);
+  }
+
+  .expense-primary-action {
+    min-height: 3rem;
+    width: 100%;
+    font-size: 0.9375rem;
+    line-height: 1.25rem;
+  }
+
+  .expense-secondary-action {
+    min-height: 2.75rem;
+    width: 100%;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  @media (min-width: 640px) {
+    .expense-sheet-overlay {
+      align-items: center;
+      padding: clamp(1rem, 3vw, 2rem);
+    }
+
+    .expense-sheet {
+      --expense-inline: clamp(1.5rem, 3vw, 2rem);
+      margin: auto;
+      height: min(88dvh, 52rem);
+      max-height: calc(100dvh - 2rem);
+      max-width: 48rem;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      border-radius: 1.75rem;
+      box-shadow: var(--kt-glass-shadow);
+    }
+
+    .expense-drawer-handle {
+      display: none;
+    }
+
+    .expense-sheet-header {
+      padding-top: 1.5rem;
+      padding-bottom: 1.125rem;
+    }
+
+    .expense-sheet-body {
+      padding-top: 1.5rem;
+      padding-bottom: 2rem;
+    }
+
+    .expense-person-row {
+      min-height: 4.5rem;
+      gap: 1rem;
+      padding: 0.75rem 1rem;
+    }
+
+    .expense-sheet-footer {
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+    }
+
+    .expense-primary-action,
+    .expense-secondary-action {
+      width: auto;
+      min-width: 8rem;
+    }
+
+    .expense-secondary-action {
+      border-color: rgba(255, 255, 255, 0.6);
+      background: rgba(255, 255, 255, 0.3);
+    }
+  }
+
+  @media (min-width: 1280px) and (min-height: 850px) {
+    .expense-sheet {
+      max-width: 52rem;
+    }
+  }
+
+  @media (max-width: 359px) {
+    .expense-sheet {
+      --expense-inline: 0.875rem;
+      height: calc(100dvh - 0.25rem);
+      max-height: calc(100dvh - 0.25rem);
+      border-radius: 1.375rem 1.375rem 0 0;
+    }
+
+    .expense-sheet-header {
+      padding-top: 0.625rem;
+      padding-bottom: 0.75rem;
+    }
+
+    .expense-sheet-body {
+      padding-top: 0.875rem;
+      padding-bottom: 1rem;
+    }
+
+    .expense-person-row {
+      min-height: 4rem;
+      padding-right: 0.75rem;
+      padding-left: 0.75rem;
+    }
+  }
+
+  @media (max-height: 600px) {
+    .expense-sheet {
+      height: calc(100dvh - 0.25rem);
+      max-height: calc(100dvh - 0.25rem);
+    }
+
+    .expense-sheet-header {
+      padding-top: 0.625rem;
+      padding-bottom: 0.625rem;
+    }
+
+    .expense-sheet-body {
+      padding-top: 0.875rem;
+      padding-bottom: 1rem;
+    }
+
+    .expense-sheet-footer {
+      padding-top: 0.625rem;
+      padding-bottom: max(0.625rem, env(safe-area-inset-bottom));
+    }
+  }
+
   .btn-danger {
     @apply rounded-full border px-3 py-1.5 text-xs font-medium;
     border-color: color-mix(in srgb, var(--kt-danger) 35%, transparent);

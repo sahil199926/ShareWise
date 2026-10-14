@@ -120,7 +120,9 @@ const DebtCard = ({
       ) : null}
 
       <p className="mt-4 text-xs text-low">
-        Added {formatDebtDate(debt.createdAt)}
+        {debt.expenseDate
+          ? `Expense ${formatDebtDate(debt.expenseDate)} · added ${formatDebtDate(debt.createdAt)}`
+          : `Added ${formatDebtDate(debt.createdAt)}`}
         {debt.status === DEBT_STATUS.CLOSE_REQUESTED
           ? ` · waiting for ${debt.creditorName} to confirm`
           : ''}

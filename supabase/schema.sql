@@ -6,6 +6,8 @@ create table if not exists public.debts (
   creditor_id uuid,
   amount numeric(12, 2) not null check (amount > 0),
   note text not null default '',
+  expense_date date,
+  batch_id uuid,
   status text not null default 'open'
     check (status in ('open', 'close_requested', 'closed')),
   created_by_email text not null,
@@ -20,6 +22,10 @@ create table if not exists public.debts (
 
 create index if not exists debts_status_idx on public.debts (status);
 create index if not exists debts_created_at_idx on public.debts (created_at desc);
+alter table public.debts add column if not exists expense_date date;
+alter table public.debts add column if not exists batch_id uuid;
+create index if not exists debts_batch_id_idx on public.debts (batch_id)
+where batch_id is not null;
 
 create or replace function public.set_debts_updated_at()
 returns trigger
@@ -601,6 +607,8 @@ as $$
       creditor.name as creditor_name,
       d.amount,
       d.note,
+      d.expense_date,
+      d.batch_id,
       d.status,
       d.created_by_email,
       d.created_by_name,
@@ -635,6 +643,8 @@ as $$
       creditor.name as creditor_name,
       d.amount,
       d.note,
+      d.expense_date,
+      d.batch_id,
       d.status,
       d.created_by_email,
       d.created_by_name,

@@ -16,6 +16,8 @@ export type Debt = {
   creditorName: string
   amount: number
   note: string
+  expenseDate: string | null
+  batchId: string | null
   status: DebtStatus
   createdByEmail: string
   createdByName: string
@@ -44,6 +46,8 @@ export type DebtRow = {
   creditor_name: string
   amount: number | string
   note: string | null
+  expense_date: string | null
+  batch_id: string | null
   status: DebtStatus
   created_by_email: string
   created_by_name: string

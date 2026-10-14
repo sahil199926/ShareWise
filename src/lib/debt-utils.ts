@@ -20,6 +20,8 @@ export const mapDebtRow = (row: DebtRow): Debt => {
     creditorName: row.creditor_name,
     amount: Number(row.amount),
     note: row.note ?? '',
+    expenseDate: row.expense_date,
+    batchId: row.batch_id,
     status: isDebtStatus(row.status) ? row.status : DEBT_STATUS.OPEN,
     createdByEmail: row.created_by_email,
     createdByName: row.created_by_name,
@@ -47,8 +49,13 @@ export const formatDebtDate = (value: string | null) => {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
-  }).format(new Date(value))
+  }).format(
+    new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00` : value),
+  )
 }
+
+export const debtActivityDate = (debt: Debt) =>
+  debt.expenseDate ?? debt.createdAt
 
 export const isOpenDebt = (debt: Debt) => debt.status !== DEBT_STATUS.CLOSED
 

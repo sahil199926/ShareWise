@@ -1,4 +1,4 @@
-import { isOpenDebt } from './debt-utils'
+import { debtActivityDate, isOpenDebt } from './debt-utils'
 import type { Debt } from '../types/debt'
 
 export type BoardId = 'receivers' | 'contributors' | 'owed'
@@ -136,7 +136,7 @@ export const recentDayKeys = (dayCount: number) => {
 
 export const filterDebtsByDays = (debts: Debt[], dayCount: number) => {
   const allowed = new Set(recentDayKeys(dayCount))
-  return debts.filter((debt) => allowed.has(dayKey(debt.createdAt)))
+  return debts.filter((debt) => allowed.has(dayKey(debtActivityDate(debt))))
 }
 
 export const recentDayStats = (
@@ -156,7 +156,7 @@ export const recentDayStats = (
   )
 
   debts.forEach((debt) => {
-    const key = dayKey(debt.createdAt)
+    const key = dayKey(debtActivityDate(debt))
     if (!allowed.has(key)) return
 
     const row = rows.get(key)

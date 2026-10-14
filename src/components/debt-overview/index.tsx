@@ -6,6 +6,7 @@ import ConfirmModal from '../confirm-modal'
 import DayRangeFilter from '../day-range-filter'
 import DebtCard from '../debt-card'
 import DebtFormModal from '../debt-form-modal'
+import ExpenseFormModal from '../expense-form-modal'
 import Pagination from '../pagination'
 import SelectField from '../select-field'
 import { DebtGridSkeleton } from '../skeleton'
@@ -21,9 +22,10 @@ import {
 } from '../../lib/debt-utils'
 import { filterDebtsByDays, type DayRange } from '../../lib/leaderboard'
 import { mergePeople } from '../../lib/overview-stats'
-import { notifyDebtMail } from '../../services/mail.service'
+import { notifyDebtMail, notifyExpenseMail } from '../../services/mail.service'
 import {
   createDebt,
+  createExpenseDebts,
   deleteDebt,
   listDebts,
   requestDebtClose,
@@ -32,6 +34,7 @@ import {
 } from '../../services/debts.service'
 import { listMasterUserOptions } from '../../services/users.service'
 import { DEBT_STATUS, type Debt, type DebtInput } from '../../types/debt'
+import type { ExpenseSubmission } from '../../types/expense'
 import type { MasterUserOption } from '../../types/user-option'
 
 type FilterKey = 'open' | 'requested' | 'closed'
@@ -70,6 +73,7 @@ const DebtOverview = () => {
   const [success, setSuccess] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false)
   const [editingDebt, setEditingDebt] = useState<Debt | undefined>()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -92,7 +96,11 @@ const DebtOverview = () => {
   }, [])
 
   useEffect(() => {
-    setPersonEmail(requestedPerson || signedInEmail)
+    const timer = window.setTimeout(
+      () => setPersonEmail(requestedPerson || signedInEmail),
+      0,
+    )
+    return () => window.clearTimeout(timer)
   }, [requestedPerson, signedInEmail])
 
   useEffect(() => {
@@ -212,6 +220,28 @@ const DebtOverview = () => {
     }
   }
 
+  const handleCreateExpense = async (input: ExpenseSubmission) => {
+    if (!user) return
+
+    setIsSubmitting(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const created = await createExpenseDebts(user, input)
+      const mail = await notifyExpenseMail(input, created)
+      setSuccess(
+        mail.sent
+          ? `Expense created. ${created.length} ${created.length === 1 ? 'debt' : 'debts'} added and ${mail.count} ${mail.count === 1 ? 'person was' : 'people were'} emailed.`
+          : `Expense created. ${created.length} ${created.length === 1 ? 'debt was' : 'debts were'} added. ${mail.message}`,
+      )
+      await loadDebts()
+      setIsExpenseModalOpen(false)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const people = useMemo(() => {
     const self =
       user?.email && user.name ? [{ name: user.name, email: user.email }] : []
@@ -223,7 +253,7 @@ const DebtOverview = () => {
       isAdmin ? [...users, ...self] : self,
       isAdmin ? debts : mine,
     )
-  }, [debts, isAdmin, user?.email, user?.name, users])
+  }, [debts, isAdmin, user, users])
 
   const selectedPerson = people.find(
     (person) =>
@@ -269,16 +299,25 @@ const DebtOverview = () => {
         }
         actions={
           isAdmin ? (
-            <button
-              type="button"
-              onClick={() => {
-                setEditingDebt(undefined)
-                setIsModalOpen(true)
-              }}
-              className="btn-primary"
-            >
-              Add debt
-            </button>
+            <div className="flex flex-col gap-2 min-[420px]:flex-row">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingDebt(undefined)
+                  setIsModalOpen(true)
+                }}
+                className="btn-secondary"
+              >
+                Add debt
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsExpenseModalOpen(true)}
+                className="btn-primary"
+              >
+                Add expense
+              </button>
+            </div>
           ) : null
         }
       />
@@ -589,18 +628,29 @@ const DebtOverview = () => {
       />
 
       {isAdmin ? (
-        <DebtFormModal
-          isOpen={isModalOpen}
-          mode={editingDebt ? 'edit' : 'create'}
-          debt={editingDebt}
-          users={users}
-          isSubmitting={isSubmitting}
-          onClose={() => {
-            setIsModalOpen(false)
-            setEditingDebt(undefined)
-          }}
-          onSubmit={handleSaveDebt}
-        />
+        <>
+          <DebtFormModal
+            isOpen={isModalOpen}
+            mode={editingDebt ? 'edit' : 'create'}
+            debt={editingDebt}
+            users={users}
+            isSubmitting={isSubmitting}
+            onClose={() => {
+              setIsModalOpen(false)
+              setEditingDebt(undefined)
+            }}
+            onSubmit={handleSaveDebt}
+          />
+          {isExpenseModalOpen ? (
+            <ExpenseFormModal
+              isOpen
+              users={users}
+              isSubmitting={isSubmitting}
+              onClose={() => setIsExpenseModalOpen(false)}
+              onSubmit={handleCreateExpense}
+            />
+          ) : null}
+        </>
       ) : null}
     </div>
   )

@@ -13,6 +13,7 @@ import {
   type DebtRow,
 } from '../types/debt'
 import type { User } from '../types/auth'
+import type { ExpenseSubmission } from '../types/expense'
 
 const TABLE = 'debts'
 
@@ -107,6 +108,36 @@ export const createDebt = async (admin: User, input: DebtInput) => {
   }
 
   return readSavedDebt(data.id)
+}
+
+export const createExpenseDebts = async (
+  admin: User,
+  input: ExpenseSubmission,
+) => {
+  if (!input.debts.length) return []
+
+  const batchId = crypto.randomUUID()
+  const rows = input.debts.map((debt) => ({
+    debtor_id: debt.debtorId,
+    creditor_id: debt.creditorId,
+    amount: debt.amount,
+    note: input.note.trim(),
+    expense_date: input.expenseDate,
+    batch_id: batchId,
+    status: DEBT_STATUS.OPEN,
+    created_by_email: admin.email.trim().toLowerCase(),
+    created_by_name: admin.name.trim(),
+  }))
+
+  const { data, error } = await supabase.from(TABLE).insert(rows).select('id')
+
+  if (error || !data || data.length !== rows.length) {
+    throw new Error(
+      toDebtError(error?.message, 'Failed to create all expense debts'),
+    )
+  }
+
+  return Promise.all(data.map((row) => readSavedDebt(row.id)))
 }
 
 export const updateDebt = async (id: string, input: DebtInput) => {

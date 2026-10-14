@@ -1,6 +1,6 @@
 import { DEBT_STATUS, type Debt, type DebtStatus } from '../types/debt'
 import type { MasterUserOption } from '../types/user-option'
-import { debtInvolvesEmail, isOpenDebt } from './debt-utils'
+import { debtActivityDate, debtInvolvesEmail, isOpenDebt } from './debt-utils'
 
 const normalize = (email: string) => email.trim().toLowerCase()
 
@@ -107,10 +107,11 @@ export const buildDayBars = (debts: Debt[], email: string): DayBar[] => {
   const rows = new Map<string, DayBar>()
 
   debtsForPerson(debts, email).forEach((debt) => {
-    const key = dayKey(debt.createdAt)
+    const activityDate = debtActivityDate(debt)
+    const key = dayKey(activityDate)
     const current = rows.get(key) ?? {
       key,
-      label: dayLabel(debt.createdAt),
+      label: dayLabel(activityDate),
       amount: 0,
       count: 0,
     }
