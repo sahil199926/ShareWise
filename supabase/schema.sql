@@ -827,6 +827,8 @@ begin
 end;
 $$;
 
+-- Bootstrap people only for a brand-new database. Re-running this schema must
+-- never recreate a person that an administrator deliberately deleted.
 insert into public.app_users (name, email, password_hash, type, age, score)
 select
   v.name,
@@ -838,16 +840,15 @@ select
 from (
   values
     ('Sahil Jaryal', 'sahil199926@gmail.com', '12345', 'SUPER ADMIN', null::integer, 26::numeric),
-    ('t2', 't@gmail.c', 'qwert', 'User', 32, 2),
-    ('t3', 't3@gmail.com', 'mcoiascm', 'User', 89, 9),
     ('Navneet', 'navneetbahuguna@gmail.com', '12345', 'User', 26, 90),
-    ('Ujjwal', 'ujjwal@gmail.com', '12345', 'User', 26, 90),
     ('Chotu', 'sahilsinghnayal@gmail.com', '12345', 'User', 26, 90),
-    ('Rishi', 'rishinigga@gmail.com', '12345', 'User', 26, 90),
     ('Rishabh', 'rishu10102002@gmail.com', '12345', 'User', 23, 90)
 ) as v(name, email, password, type, age, score)
 where not exists (
   select 1 from public.app_users u where u.email = v.email
+)
+and not exists (
+  select 1 from public.app_users
 );
 
 update public.app_users
