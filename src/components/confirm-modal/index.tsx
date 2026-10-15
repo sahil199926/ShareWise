@@ -26,7 +26,10 @@ const ConfirmModal = ({
 }: ConfirmModalProps) => {
   const cancelRef = useRef<HTMLButtonElement>(null)
   const onCancelRef = useRef(onCancel)
-  onCancelRef.current = onCancel
+
+  useEffect(() => {
+    onCancelRef.current = onCancel
+  }, [onCancel])
 
   useEffect(() => {
     if (!isOpen) return
@@ -42,7 +45,7 @@ const ConfirmModal = ({
   }, [isConfirming, isOpen])
 
   return (
-    <Modal isOpen={isOpen}>
+    <Modal isOpen={isOpen} onClose={isConfirming ? undefined : onCancel}>
       <h2 className="text-lg font-semibold text-high">{title}</h2>
       <p className="mt-2 text-sm text-medium">{message}</p>
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">

@@ -12,6 +12,7 @@ export const isDebtStatus = (value: string): value is DebtStatus => {
 export const mapDebtRow = (row: DebtRow): Debt => {
   return {
     id: row.id,
+    groupId: row.group_id,
     debtorId: row.debtor_id,
     debtorEmail: row.debtor_email,
     debtorName: row.debtor_name,

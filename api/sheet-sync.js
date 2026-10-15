@@ -6,6 +6,10 @@ export default async function handler(request, response) {
     return
   }
 
-  const result = await handleSheetSyncRequest(request.body)
+  const result = await handleSheetSyncRequest(
+    request.body,
+    process.env,
+    request.headers,
+  )
   response.status(result.status).json(result.body)
 }

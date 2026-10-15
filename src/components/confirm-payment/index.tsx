@@ -9,7 +9,7 @@ import { notifyDebtMail } from '../../services/mail.service'
 import { DEBT_STATUS, type Debt } from '../../types/debt'
 
 const ConfirmPayment = () => {
-  const { id = '' } = useParams()
+  const { groupId = '', id = '' } = useParams()
   const { user } = useAuth()
   const [debt, setDebt] = useState<Debt | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -21,7 +21,7 @@ const ConfirmPayment = () => {
   useEffect(() => {
     let cancelled = false
 
-    getDebt(id)
+    getDebt(groupId, id)
       .then((nextDebt) => {
         if (!cancelled) setDebt(nextDebt)
       })
@@ -39,7 +39,7 @@ const ConfirmPayment = () => {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [groupId, id])
 
   const isReceiver = Boolean(
     debt && user?.email && isDebtCreditor(debt, user.email),
@@ -52,7 +52,7 @@ const ConfirmPayment = () => {
     setError('')
 
     try {
-      const closed = await confirmDebtPayment(debt, user)
+      const closed = await confirmDebtPayment(groupId, debt.id)
       setDebt(closed)
       const mail = await notifyDebtMail('debt_closed', closed)
       if (mail.sent) setMailed(true)
@@ -117,9 +117,7 @@ const ConfirmPayment = () => {
                   Both of you were emailed.
                 </p>
               ) : null}
-              {mailNote ? (
-                <p className="alert-error mt-4">{mailNote}</p>
-              ) : null}
+              {mailNote ? <p className="alert-error mt-4">{mailNote}</p> : null}
             </>
           ) : null}
           {debt && isReceiver && debt.status === DEBT_STATUS.CLOSE_REQUESTED ? (

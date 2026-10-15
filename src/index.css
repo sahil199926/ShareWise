@@ -289,6 +289,69 @@
     @apply m-auto w-full max-w-md rounded-3xl border border-white/70 bg-white/85 p-6 shadow-xl backdrop-blur-xl;
   }
 
+  .modal-drawer-handle-zone {
+    display: none;
+  }
+
+  @media (max-width: 639px) {
+    .modal-overlay-sheet {
+      align-items: flex-end;
+      overflow: hidden;
+      padding: 0;
+    }
+
+    .modal-panel-sheet {
+      position: relative;
+      margin: auto 0 0;
+      width: 100%;
+      max-height: calc(100dvh - 0.5rem);
+      max-width: none;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      border-right: 0;
+      border-bottom: 0;
+      border-left: 0;
+      border-radius: 1.75rem 1.75rem 0 0;
+      padding-top: 2rem;
+      padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+      box-shadow: 0 -20px 60px -30px rgba(20, 83, 45, 0.55);
+      scrollbar-gutter: stable;
+    }
+
+    .modal-drawer-handle-zone {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      z-index: 30;
+      display: flex;
+      width: 5.5rem;
+      height: 2rem;
+      transform: translateX(-50%);
+      cursor: grab;
+      touch-action: none;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      background: transparent;
+    }
+
+    .modal-drawer-handle-zone:active {
+      cursor: grabbing;
+    }
+
+    .modal-drawer-handle {
+      width: 2.75rem;
+      height: 0.3rem;
+      border-radius: 999px;
+      background: color-mix(
+        in srgb,
+        var(--kt-money-deep) 30%,
+        transparent
+      );
+    }
+  }
+
   .expense-sheet-overlay {
     align-items: flex-end;
     overflow: hidden;
@@ -308,7 +371,7 @@
     border-left: 0;
     border-radius: 1.75rem 1.75rem 0 0;
     background: color-mix(in srgb, var(--kt-surface) 98%, white);
-    padding: 0;
+    padding: 2rem 0 0;
     box-shadow: 0 -20px 60px -30px rgba(20, 83, 45, 0.55);
   }
 
@@ -321,16 +384,6 @@
     height: 100%;
     min-height: 0;
     flex-direction: column;
-  }
-
-  .expense-drawer-handle {
-    width: 2.5rem;
-    height: 0.25rem;
-    flex: none;
-    align-self: center;
-    margin-top: 0.5rem;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--kt-money-deep) 24%, transparent);
   }
 
   .expense-sheet-header {
@@ -436,6 +489,7 @@
       max-width: 48rem;
       border: 1px solid rgba(255, 255, 255, 0.72);
       border-radius: 1.75rem;
+      padding: 0;
       box-shadow: var(--kt-glass-shadow);
     }
 

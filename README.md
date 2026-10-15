@@ -74,13 +74,46 @@ export default defineConfig([
 
 # ShareWise
 
+## Public rollout and tenant isolation
+
+Karja Tracker uses Firebase Authentication for Google sign-in, session
+persistence, and logout. Supabase Auth is not used. Supabase verifies the
+Firebase ID token as a third-party JWT and uses its signed `sub` and verified
+email claims for database authorization. The browser never supplies a trusted
+email.
+
+Deploy in this order so the frontend never reaches an old permissive schema:
+
+1. Apply `supabase/schema.sql` for a new database, then apply
+   `supabase/migrations/20261015110000_multitenant_security.sql`. For an
+   existing database that already has the tenant migration, additionally apply
+   `supabase/migrations/20261015210000_firebase_direct_auth.sql`.
+2. In Firebase Authentication, enable Google and add the local and production
+   domains as authorized domains. Add the `VITE_FIREBASE_*` web-app values to
+   the frontend environment.
+3. In Supabase Auth → Third-Party Auth, add the Firebase project `karja-app`.
+   The same setting is declared in `supabase/config.toml` for CLI deployments.
+4. Verify a legacy member, a new group owner, an invited member, and a user who
+   belongs to two groups before deploying the frontend.
+
+Every tenant RPC accepts a `group_id`, but that value is only a selector. The
+database resolves the caller from the verified Firebase JWT `sub` and verifies
+an active `group_members` row before reading or changing anything. A caller
+cannot gain access by supplying another group's UUID. Financial writes are
+available only through guarded database functions; direct debt inserts,
+updates, and deletes are revoked.
+
+New groups allow 10 members (including the owner) and three group creations per
+account per rolling 24 hours. Higher limits should be handled through
+`contact@eonlint.com`.
+
 ## Daily open-payment reminders
 
 Karja Tracker includes a Supabase Edge Function that emails one daily digest to
 each person who has at least one debt with `status = 'open'`. It uses Resend and
 runs at 9:00 AM India time through Supabase Cron.
 
-1. Run `supabase/schema.sql` in the Supabase SQL editor.
+1. Apply the schema and tenant migration described above.
 2. Link the local project and deploy the function:
 
    ```bash
@@ -114,12 +147,12 @@ the same day. Debts in `close_requested` or `closed` are intentionally excluded.
 
 ## Google Sheet debt import
 
-The Debts page includes a super-admin-only **Sync with sheet** flow. It reads a
+The Debts page includes a legacy-group-admin-only **Sync with sheet** flow. It reads a
 selected tab, validates the `TOTAL`, `GIVEN`, and `pending` rows, matches sheet
 names to people, previews the resulting debts, and creates them only after
 approval. Each tab can be imported once.
 
-1. Run `supabase/schema.sql` in the Supabase SQL editor.
+1. Apply the schema and tenant migration described above.
 2. Paste `google-apps-script/Code.gs` into the Apps Script project attached to
    the expense workbook.
 3. In Apps Script project settings, add a Script Property named

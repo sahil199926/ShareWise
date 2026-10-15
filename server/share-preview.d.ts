@@ -1,9 +1,7 @@
 export function isShareCrawler(userAgent: string | undefined): boolean
 
 export function buildSharePreview(input: {
-  kind: 'leaderboard' | 'share'
-  email: string | undefined
+  token: string | undefined
   origin: string
   env: Record<string, string>
-  days?: string
 }): Promise<string>

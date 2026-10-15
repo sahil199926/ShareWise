@@ -21,14 +21,15 @@ import {
   debtInvolvesEmail,
   formatRupee,
 } from '../../lib/debt-utils'
-import { filterDebtsByDays, type DayRange } from '../../lib/leaderboard'
+import type { DayRange } from '../../lib/leaderboard'
 import { mergePeople } from '../../lib/overview-stats'
 import { notifyDebtMail, notifyExpenseMail } from '../../services/mail.service'
 import {
   createDebt,
+  createDebtShareToken,
   createExpenseDebts,
   deleteDebt,
-  listDebts,
+  listDebtPage,
   requestDebtClose,
   setDebtStatus,
   updateDebt,
@@ -39,6 +40,7 @@ import { DEBT_STATUS, type Debt, type DebtInput } from '../../types/debt'
 import type { ExpenseSubmission } from '../../types/expense'
 import type { SheetSyncSubmission } from '../../types/sheet-sync'
 import type { MasterUserOption } from '../../types/user-option'
+import type { PaginationMeta } from '../../types/pagination'
 
 type FilterKey = 'open' | 'requested' | 'closed'
 
@@ -48,15 +50,9 @@ const FILTERS: Array<{ id: FilterKey; label: string }> = [
   { id: 'closed', label: 'Closed' },
 ]
 
-const matchesFilter = (debt: Debt, filter: FilterKey) => {
-  if (filter === 'requested') return debt.status === DEBT_STATUS.CLOSE_REQUESTED
-  if (filter === 'closed') return debt.status === DEBT_STATUS.CLOSED
-  return debt.status === DEBT_STATUS.OPEN
-}
-
 const DebtOverview = () => {
   const reduceMotion = useReducedMotion()
-  const { user, logout } = useAuth()
+  const { user, activeGroup, logout } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const isAdmin = isSuperAdmin(user)
@@ -68,6 +64,12 @@ const DebtOverview = () => {
   const [filter, setFilter] = useState<FilterKey>('open')
   const [range, setRange] = useState<DayRange>(30)
   const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<PaginationMeta>({
+    page: 1,
+    pageSize: DEBT_PAGE_SIZE,
+    total: 0,
+    totalPages: 1,
+  })
   const [personEmail, setPersonEmail] = useState(
     requestedPerson || signedInEmail,
   )
@@ -83,7 +85,9 @@ const DebtOverview = () => {
   const [copied, setCopied] = useState(false)
   const [shareText, setShareText] = useState('')
   const [debtToDelete, setDebtToDelete] = useState<Debt | null>(null)
+  const [debtToRequest, setDebtToRequest] = useState<Debt | null>(null)
   const [debtToClose, setDebtToClose] = useState<Debt | null>(null)
+  const [debtToReopen, setDebtToReopen] = useState<Debt | null>(null)
   const [leaveTarget, setLeaveTarget] = useState<
     Record<string, { x: number; y: number }>
   >({})
@@ -94,10 +98,33 @@ const DebtOverview = () => {
     debts.flatMap((debt) => [debt.debtorEmail, debt.creditorEmail]),
   )
 
+  const selectedPersonId =
+    personEmail.trim().toLowerCase() === user?.email.trim().toLowerCase()
+      ? (user?.id ?? null)
+      : (users.find(
+          (person) =>
+            person.email.trim().toLowerCase() ===
+            personEmail.trim().toLowerCase(),
+        )?.id ?? null)
+  const selectedStatus =
+    filter === 'requested'
+      ? DEBT_STATUS.CLOSE_REQUESTED
+      : filter === 'closed'
+        ? DEBT_STATUS.CLOSED
+        : DEBT_STATUS.OPEN
+
   const loadDebts = useCallback(async () => {
-    const nextDebts = await listDebts()
-    setDebts(nextDebts)
-  }, [])
+    if (!activeGroup) return
+    const result = await listDebtPage(activeGroup.id, {
+      page,
+      pageSize: DEBT_PAGE_SIZE,
+      status: selectedStatus,
+      personId: personEmail ? selectedPersonId : null,
+      days: range,
+    })
+    setDebts(result.debts)
+    setPagination(result.pagination)
+  }, [activeGroup, page, personEmail, range, selectedPersonId, selectedStatus])
 
   useEffect(() => {
     const timer = window.setTimeout(
@@ -108,12 +135,12 @@ const DebtOverview = () => {
   }, [requestedPerson, signedInEmail])
 
   useEffect(() => {
-    if (!user?.email) return
+    if (!user?.email || !activeGroup) return
 
     let cancelled = false
 
     const loadPeople = isAdmin
-      ? listMasterUserOptions(user.email)
+      ? listMasterUserOptions(activeGroup.id)
           .then((nextUsers) => {
             if (!cancelled) setUsers(nextUsers)
           })
@@ -126,31 +153,26 @@ const DebtOverview = () => {
           })
       : Promise.resolve()
 
-    const loadKarja = listDebts()
-      .then((nextDebts) => {
-        if (cancelled) return
-        setDebts(nextDebts)
-        setError('')
-      })
-      .catch((err) => {
-        if (cancelled) return
-        const message =
-          err instanceof Error ? err.message : 'Failed to load debts'
-        setError(
-          message.includes('public.debts')
-            ? 'Debts table is missing in Supabase. Open the SQL editor and run supabase/schema.sql, then refresh.'
-            : message,
-        )
-      })
-
-    Promise.all([loadPeople, loadKarja]).finally(() => {
+    loadPeople.finally(() => {
       if (!cancelled) setIsLoading(false)
     })
 
     return () => {
       cancelled = true
     }
-  }, [isAdmin, user?.email])
+  }, [activeGroup, isAdmin, user?.email])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadDebts()
+        .then(() => setError(''))
+        .catch((err) =>
+          setError(err instanceof Error ? err.message : 'Failed to load debts'),
+        )
+        .finally(() => setIsLoading(false))
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [loadDebts])
 
   const handleLogout = () => {
     logout()
@@ -198,17 +220,17 @@ const DebtOverview = () => {
   }
 
   const handleSaveDebt = async (input: DebtInput) => {
-    if (!user) return
+    if (!user || !activeGroup) return
 
     setIsSubmitting(true)
     setError('')
 
     try {
       if (editingDebt) {
-        await updateDebt(editingDebt.id, input)
+        await updateDebt(activeGroup.id, editingDebt.id, input)
         setSuccess('Debt updated.')
       } else {
-        const created = await createDebt(user, input)
+        const created = await createDebt(activeGroup.id, input)
         const mail = await notifyDebtMail('debt_created', created)
         setSuccess(
           mail.sent
@@ -225,14 +247,14 @@ const DebtOverview = () => {
   }
 
   const handleCreateExpense = async (input: ExpenseSubmission) => {
-    if (!user) return
+    if (!user || !activeGroup) return
 
     setIsSubmitting(true)
     setError('')
     setSuccess('')
 
     try {
-      const created = await createExpenseDebts(user, input)
+      const created = await createExpenseDebts(activeGroup.id, input)
       const mail = await notifyExpenseMail(input, created)
       setSuccess(
         mail.sent
@@ -254,7 +276,7 @@ const DebtOverview = () => {
     setSuccess('')
 
     try {
-      const created = await createSheetImportDebts(user, input)
+      const created = await createSheetImportDebts(activeGroup!.id, input)
       const mail = await notifyExpenseMail(
         {
           note: input.note,
@@ -293,23 +315,7 @@ const DebtOverview = () => {
       person.email.trim().toLowerCase() === personEmail.trim().toLowerCase(),
   )
 
-  const visibleDebts = useMemo(() => {
-    return filterDebtsByDays(debts, range).filter((debt) => {
-      if (!matchesFilter(debt, filter)) return false
-      if (!personEmail) return true
-      return debtInvolvesEmail(debt, personEmail)
-    })
-  }, [debts, filter, personEmail, range])
-
-  const totalPages = Math.max(
-    1,
-    Math.ceil(visibleDebts.length / DEBT_PAGE_SIZE),
-  )
-  const currentPage = Math.min(page, totalPages)
-  const pagedDebts = visibleDebts.slice(
-    (currentPage - 1) * DEBT_PAGE_SIZE,
-    currentPage * DEBT_PAGE_SIZE,
-  )
+  const pagedDebts = debts
 
   return (
     <div className="page-shell">
@@ -333,13 +339,15 @@ const DebtOverview = () => {
         actions={
           isAdmin ? (
             <div className="flex flex-col gap-2 min-[420px]:flex-row">
-              <button
-                type="button"
-                onClick={() => setIsSheetSyncOpen(true)}
-                className="btn-secondary"
-              >
-                Sync with sheet
-              </button>
+              {activeGroup?.sheetSyncEnabled ? (
+                <button
+                  type="button"
+                  onClick={() => setIsSheetSyncOpen(true)}
+                  className="btn-secondary"
+                >
+                  Sync with sheet
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => {
@@ -395,29 +403,38 @@ const DebtOverview = () => {
                   type="button"
                   className="btn-secondary"
                   onClick={() => {
-                    const url = `${window.location.origin}/share/${encodeURIComponent(selectedPerson.email.trim().toLowerCase())}`
-                    const text = buildDebtShareText({
-                      debts: debts.filter(
-                        (debt) => debt.status === DEBT_STATUS.OPEN,
-                      ),
-                      email: selectedPerson.email,
-                      name: selectedPerson.name,
-                      url,
-                    })
+                    if (!activeGroup || !selectedPersonId) return
                     const markCopied = () => {
                       setShareText('')
                       setCopied(true)
                       window.setTimeout(() => setCopied(false), 2000)
                     }
-                    const revealText = () => {
+                    const revealText = (text: string) => {
                       setCopied(false)
                       setShareText(text)
                     }
 
-                    void copyTextToClipboard(text).then((didCopy) => {
-                      if (didCopy) markCopied()
-                      else revealText()
-                    })
+                    void createDebtShareToken(activeGroup.id, selectedPersonId)
+                      .then(({ token }) => {
+                        const url = `${window.location.origin}/share/${token}`
+                        const text = buildDebtShareText({
+                          debts,
+                          email: selectedPerson.email,
+                          name: selectedPerson.name,
+                          url,
+                        })
+                        return copyTextToClipboard(text).then((didCopy) => {
+                          if (didCopy) markCopied()
+                          else revealText(text)
+                        })
+                      })
+                      .catch((err) =>
+                        setError(
+                          err instanceof Error
+                            ? err.message
+                            : 'Could not create share link',
+                        ),
+                      )
                   }}
                 >
                   {copied ? 'Summary copied' : 'Copy share message'}
@@ -491,7 +508,7 @@ const DebtOverview = () => {
                         ref={(node) => {
                           if (node) cardRefs.current[debt.id] = node
                         }}
-                        className="min-w-0"
+                        className="h-full min-w-0"
                         style={{ zIndex: offset ? 30 : 1 }}
                         initial={false}
                         exit={
@@ -520,58 +537,9 @@ const DebtOverview = () => {
                             setIsModalOpen(true)
                           }}
                           onDelete={setDebtToDelete}
-                          onRequestClose={(next) => {
-                            if (!user) return
-                            aimCardAtTab(next.id, 'requested')
-                            void (async () => {
-                              let mailWarning = ''
-                              const didSave = await runAction(async () => {
-                                const updated = await requestDebtClose(
-                                  next,
-                                  user,
-                                )
-                                const mail = await notifyDebtMail(
-                                  'payment_requested',
-                                  updated,
-                                )
-                                if (!mail.sent) mailWarning = mail.message
-                              }, 'Paid request sent. They were emailed to confirm.')
-                              if (!didSave) {
-                                setLeaveTarget((current) => {
-                                  const nextTargets = { ...current }
-                                  delete nextTargets[next.id]
-                                  return nextTargets
-                                })
-                                return
-                              }
-                              if (mailWarning) {
-                                setSuccess('')
-                                setError(`Paid request saved. ${mailWarning}`)
-                              }
-                            })()
-                          }}
+                          onRequestClose={setDebtToRequest}
                           onMarkClosed={setDebtToClose}
-                          onReopen={(next) => {
-                            if (!user) return
-                            aimCardAtTab(next.id, 'open')
-                            void runAction(
-                              () =>
-                                setDebtStatus(
-                                  next.id,
-                                  DEBT_STATUS.OPEN,
-                                  user,
-                                  isAdmin,
-                                ),
-                              'Moved back to open.',
-                            ).then((didMove) => {
-                              if (didMove) return
-                              setLeaveTarget((current) => {
-                                const nextTargets = { ...current }
-                                delete nextTargets[next.id]
-                                return nextTargets
-                              })
-                            })
-                          }}
+                          onReopen={setDebtToReopen}
                         />
                       </motion.div>
                     )
@@ -586,10 +554,7 @@ const DebtOverview = () => {
               <Pagination
                 itemLabel="debts"
                 pagination={{
-                  page: currentPage,
-                  pageSize: DEBT_PAGE_SIZE,
-                  total: visibleDebts.length,
-                  totalPages,
+                  ...pagination,
                 }}
                 onPageChange={setPage}
               />
@@ -597,6 +562,49 @@ const DebtOverview = () => {
           ) : null}
         </section>
       </main>
+
+      <ConfirmModal
+        isOpen={Boolean(debtToRequest)}
+        title="Confirm that you paid?"
+        message={
+          debtToRequest
+            ? `Confirm that you paid ${formatRupee(debtToRequest.amount)} to ${debtToRequest.creditorName}. They will be emailed and must confirm before this debt is closed.`
+            : ''
+        }
+        confirmLabel="Yes, I paid"
+        pendingLabel="Sending request…"
+        tone="primary"
+        isConfirming={actionLoading}
+        onCancel={() => {
+          if (!actionLoading) setDebtToRequest(null)
+        }}
+        onConfirm={() => {
+          if (!debtToRequest || !user) return
+          const debt = debtToRequest
+          aimCardAtTab(debt.id, 'requested')
+          void (async () => {
+            let mailWarning = ''
+            const didSave = await runAction(async () => {
+              const updated = await requestDebtClose(activeGroup!.id, debt.id)
+              const mail = await notifyDebtMail('payment_requested', updated)
+              if (!mail.sent) mailWarning = mail.message
+            }, 'Paid request sent. They were emailed to confirm.')
+            if (!didSave) {
+              setLeaveTarget((current) => {
+                const nextTargets = { ...current }
+                delete nextTargets[debt.id]
+                return nextTargets
+              })
+              return
+            }
+            setDebtToRequest(null)
+            if (mailWarning) {
+              setSuccess('')
+              setError(`Paid request saved. ${mailWarning}`)
+            }
+          })()
+        }}
+      />
 
       <ConfirmModal
         isOpen={Boolean(debtToClose)}
@@ -621,10 +629,9 @@ const DebtOverview = () => {
             let mailWarning = ''
             const didClose = await runAction(async () => {
               const updated = await setDebtStatus(
+                activeGroup!.id,
                 debt.id,
                 DEBT_STATUS.CLOSED,
-                user,
-                isAdmin,
               )
               const mail = await notifyDebtMail('debt_closed', updated)
               if (!mail.sent) mailWarning = mail.message
@@ -646,6 +653,50 @@ const DebtOverview = () => {
       />
 
       <ConfirmModal
+        isOpen={Boolean(debtToReopen)}
+        title={
+          debtToReopen?.status === DEBT_STATUS.CLOSE_REQUESTED
+            ? 'Move this debt back to open?'
+            : 'Reopen this debt?'
+        }
+        message={
+          debtToReopen
+            ? `${debtToReopen.status === DEBT_STATUS.CLOSE_REQUESTED ? 'Cancel the close request and move' : 'Move'} the ${formatRupee(debtToReopen.amount)} debt between ${debtToReopen.debtorName} and ${debtToReopen.creditorName} back to Open?`
+            : ''
+        }
+        confirmLabel={
+          debtToReopen?.status === DEBT_STATUS.CLOSE_REQUESTED
+            ? 'Move to open'
+            : 'Reopen debt'
+        }
+        pendingLabel="Moving…"
+        tone="primary"
+        isConfirming={actionLoading}
+        onCancel={() => {
+          if (!actionLoading) setDebtToReopen(null)
+        }}
+        onConfirm={() => {
+          if (!debtToReopen || !user) return
+          const debt = debtToReopen
+          aimCardAtTab(debt.id, 'open')
+          void runAction(
+            () => setDebtStatus(activeGroup!.id, debt.id, DEBT_STATUS.OPEN),
+            'Moved back to open.',
+          ).then((didMove) => {
+            if (didMove) {
+              setDebtToReopen(null)
+              return
+            }
+            setLeaveTarget((current) => {
+              const nextTargets = { ...current }
+              delete nextTargets[debt.id]
+              return nextTargets
+            })
+          })
+        }}
+      />
+
+      <ConfirmModal
         isOpen={Boolean(debtToDelete)}
         message={
           debtToDelete
@@ -659,11 +710,12 @@ const DebtOverview = () => {
         onConfirm={() => {
           if (!debtToDelete) return
           const debt = debtToDelete
-          void runAction(() => deleteDebt(debt.id), 'Debt deleted.').then(
-            (didDelete) => {
-              if (didDelete) setDebtToDelete(null)
-            },
-          )
+          void runAction(
+            () => deleteDebt(activeGroup!.id, debt.id),
+            'Debt deleted.',
+          ).then((didDelete) => {
+            if (didDelete) setDebtToDelete(null)
+          })
         }}
       />
 
@@ -693,7 +745,7 @@ const DebtOverview = () => {
           {isSheetSyncOpen && user ? (
             <SheetSyncModal
               isOpen
-              user={user}
+              groupId={activeGroup!.id}
               users={users}
               isSubmitting={isSubmitting}
               onClose={() => setIsSheetSyncOpen(false)}

@@ -65,7 +65,7 @@ const personPath = (email: string) =>
   `/leaderboard/${encodeURIComponent(email)}`
 
 const Leaderboard = () => {
-  const { user } = useAuth()
+  const { user, activeGroup } = useAuth()
   const [debts, setDebts] = useState<Debt[]>([])
   const [faces, setFaces] = useState<Record<string, string | null>>({})
   const [isLoading, setIsLoading] = useState(true)
@@ -74,9 +74,10 @@ const Leaderboard = () => {
   const [range, setRange] = useState<DayRange>(30)
 
   useEffect(() => {
+    if (!activeGroup) return
     let cancelled = false
 
-    listDebts()
+    listDebts(activeGroup.id)
       .then(async (nextDebts) => {
         if (cancelled) return
         setDebts(nextDebts)
@@ -84,7 +85,7 @@ const Leaderboard = () => {
           debt.debtorEmail,
           debt.creditorEmail,
         ])
-        const nextFaces = await listLeaderboardFaces(emails)
+        const nextFaces = await listLeaderboardFaces(activeGroup.id, emails)
         if (!cancelled) setFaces(nextFaces)
       })
       .catch((err: unknown) => {
@@ -101,7 +102,7 @@ const Leaderboard = () => {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [activeGroup])
 
   const people = useMemo(
     () => buildLeaderboard(filterDebtsByDays(debts, range)),
@@ -122,7 +123,7 @@ const Leaderboard = () => {
   return (
     <LeaderboardFrame
       title="Leaderboard"
-      subtitle="Open to everyone. Scores come from real karja."
+      subtitle="Visible to members of this group. Scores come from real karja."
       headerAside={<DayRangeFilter value={range} onChange={setRange} />}
     >
       {error ? <p className="alert-error">{error}</p> : null}

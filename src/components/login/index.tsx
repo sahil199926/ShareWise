@@ -1,12 +1,9 @@
-import { useCallback, useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Navigate, useLocation } from 'react-router-dom'
 import { APP_NAME } from '../../constants/brand'
 import { useAuth } from '../../hooks/use-auth'
 import { firebaseReady } from '../../lib/firebase'
-import {
-  NO_PLATFORM_ACCESS,
-  signInWithGoogle,
-} from '../../services/auth.service'
+import { signInWithGoogle } from '../../services/auth.service'
 import KarjaArt from '../karja-art'
 import LazyFallback from '../lazy-fallback'
 import Logo from '../logo'
@@ -14,63 +11,33 @@ import Logo from '../logo'
 const Login = () => {
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [loginBlocked, setLoginBlocked] = useState(false)
-  const { login, isAuthenticated, isBootstrapping } = useAuth()
-  const navigate = useNavigate()
+  const { isAuthenticated, isBootstrapping, activeGroup } = useAuth()
   const location = useLocation()
-
   const fromLocation = (
     location.state as {
       from?: { pathname?: string; search?: string; hash?: string }
     } | null
   )?.from
-  const from = fromLocation?.pathname
+  const requestedPath = fromLocation?.pathname
     ? `${fromLocation.pathname}${fromLocation.search ?? ''}${fromLocation.hash ?? ''}`
-    : '/dashboard'
+    : (sessionStorage.getItem('karja_auth_return_path') ?? '/dashboard')
 
-  const finishSignIn = useCallback(
-    (attempt: Promise<Awaited<ReturnType<typeof signInWithGoogle>>>) => {
-      setError('')
-      setIsSubmitting(true)
-
-      void attempt
-        .then((user) => {
-          login(user)
-          navigate(from, { replace: true })
-        })
-        .catch((err: unknown) => {
-          const code =
-            err && typeof err === 'object' && 'code' in err
-              ? String(err.code)
-              : ''
-
-          if (code === 'auth/popup-closed-by-user') {
-            setError('')
-            return
-          }
-
-          const message = err instanceof Error ? err.message : 'Login failed'
-          if (message === NO_PLATFORM_ACCESS) setLoginBlocked(true)
-          setError(message)
-        })
-        .finally(() => {
-          setIsSubmitting(false)
-        })
-    },
-    [from, login, navigate],
-  )
-
-  const handleGoogleSignIn = () => {
-    if (loginBlocked || isSubmitting) return
-    finishSignIn(signInWithGoogle())
+  const handleGoogleSignIn = async () => {
+    setError('')
+    setIsSubmitting(true)
+    try {
+      await signInWithGoogle(requestedPath)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google sign-in failed')
+      setIsSubmitting(false)
+    }
   }
 
-  if (isBootstrapping) {
-    return <LazyFallback />
-  }
-
+  if (isBootstrapping) return <LazyFallback />
   if (isAuthenticated) {
-    return <Navigate to={from} replace />
+    const destination = activeGroup ? requestedPath : '/onboarding'
+    sessionStorage.removeItem('karja_auth_return_path')
+    return <Navigate to={destination} replace />
   }
 
   return (
@@ -91,27 +58,23 @@ const Login = () => {
             Sign in
           </h1>
           <p className="mt-2 text-center text-sm text-low">
-            Welcome back to {APP_NAME}
+            Welcome to {APP_NAME}
           </p>
-
           <div className="mt-8 space-y-4">
             {error ? <p className="alert-error">{error}</p> : null}
-
             {firebaseReady ? (
               <button
                 type="button"
                 className="btn-secondary flex min-h-11 w-full items-center justify-center gap-3 bg-white/80 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={handleGoogleSignIn}
-                disabled={isSubmitting || loginBlocked}
+                onClick={() => void handleGoogleSignIn()}
+                disabled={isSubmitting}
               >
                 <GoogleMark />
                 {isSubmitting ? 'Signing in…' : 'Continue with Google'}
               </button>
             ) : (
               <p className="alert-error">
-                Add the Firebase web app keys in .env, then restart the app. In
-                Firebase, open Project settings, Your apps, and copy the config
-                for karja-app.
+                Add the Firebase web app keys to .env, then restart the app.
               </p>
             )}
           </div>

@@ -19,6 +19,7 @@ type UsersTableProps = {
   currentUserEmail?: string
   onEdit: (user: MasterUser) => void
   onDelete: (user: MasterUser) => void
+  canManage?: boolean
 }
 
 const columnHelper = createColumnHelper<MasterUser>()
@@ -65,6 +66,7 @@ const UsersTable = ({
   currentUserEmail,
   onEdit,
   onDelete,
+  canManage = true,
 }: UsersTableProps) => {
   const columns = useMemo(
     () => [
@@ -104,17 +106,18 @@ const UsersTable = ({
       columnHelper.display({
         id: 'actions',
         header: 'Actions',
-        cell: ({ row }) => (
-          <UserActions
-            person={row.original}
-            currentUserEmail={currentUserEmail}
-            onEdit={onEdit}
-            onDelete={onDelete}
-          />
-        ),
+        cell: ({ row }) =>
+          canManage ? (
+            <UserActions
+              person={row.original}
+              currentUserEmail={currentUserEmail}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          ) : null,
       }),
     ],
-    [currentUserEmail, onDelete, onEdit],
+    [canManage, currentUserEmail, onDelete, onEdit],
   )
 
   const table = useReactTable({
@@ -143,12 +146,14 @@ const UsersTable = ({
               <p>
                 Age {formatCell(person.age)} · Score {formatCell(person.score)}
               </p>
-              <UserActions
-                person={person}
-                currentUserEmail={currentUserEmail}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
+              {canManage ? (
+                <UserActions
+                  person={person}
+                  currentUserEmail={currentUserEmail}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
+              ) : null}
             </div>
           </article>
         ))}

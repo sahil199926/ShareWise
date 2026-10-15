@@ -13,6 +13,7 @@ export const notifyDebtMail = async (kind: MailKind, debt: Debt) => {
         appUrl: window.location.origin,
         debt: {
           id: debt.id,
+          groupId: debt.groupId,
           debtorName: debt.debtorName,
           debtorEmail: debt.debtorEmail,
           creditorName: debt.creditorName,
@@ -52,6 +53,7 @@ export const notifyExpenseMail = async (
         expense,
         debts: debts.map((debt) => ({
           id: debt.id,
+          groupId: debt.groupId,
           debtorName: debt.debtorName,
           debtorEmail: debt.debtorEmail,
           creditorName: debt.creditorName,

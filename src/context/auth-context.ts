@@ -1,13 +1,16 @@
 import { createContext } from 'react'
-import type { User } from '../types/auth'
+import type { GroupSummary, User } from '../types/auth'
 
 export type AuthContextValue = {
   user: User | null
+  groups: GroupSummary[]
+  activeGroup: GroupSummary | null
   isAuthenticated: boolean
   isBootstrapping: boolean
-  login: (user: User) => void
+  selectGroup: (groupId: string) => void
+  refreshContext: () => Promise<void>
   updateUser: (user: User) => void
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

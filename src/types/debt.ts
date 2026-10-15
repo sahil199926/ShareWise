@@ -8,6 +8,7 @@ export type DebtStatus = (typeof DEBT_STATUS)[keyof typeof DEBT_STATUS]
 
 export type Debt = {
   id: string
+  groupId: string
   debtorId: string
   debtorEmail: string
   debtorName: string
@@ -38,6 +39,7 @@ export type DebtInput = {
 
 export type DebtRow = {
   id: string
+  group_id: string
   debtor_id: string
   debtor_email: string
   debtor_name: string

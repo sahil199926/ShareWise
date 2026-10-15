@@ -15,3 +15,6 @@ export const LeaderboardPersonPage = lazy(
 )
 export const ProfilePage = lazy(() => import('../components/profile'))
 export const MasterPage = lazy(() => import('../components/master'))
+export const GroupOnboardingPage = lazy(
+  () => import('../components/group-onboarding'),
+)

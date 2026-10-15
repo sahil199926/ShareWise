@@ -4,7 +4,7 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/leaderboard/:email",
+      "source": "/share/:token",
       "has": [
         {
           "type": "header",
@@ -12,18 +12,7 @@
           "value": ".*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|LinkedInBot|TelegramBot|Discordbot|Applebot|Pinterest|vkShare|W3C_Validator).*"
         }
       ],
-      "destination": "/api/share-preview?kind=leaderboard&email=:email"
-    },
-    {
-      "source": "/share/:email",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": ".*(facebookexternalhit|Facebot|WhatsApp|Twitterbot|Slackbot|LinkedInBot|TelegramBot|Discordbot|Applebot|Pinterest|vkShare|W3C_Validator).*"
-        }
-      ],
-      "destination": "/api/share-preview?kind=share&email=:email"
+      "destination": "/api/share-preview?token=:token"
     },
     {
       "source": "/((?!api/).*)",

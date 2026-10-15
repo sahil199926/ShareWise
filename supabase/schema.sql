@@ -87,31 +87,10 @@ execute function public.set_debts_updated_at();
 alter table public.debts enable row level security;
 
 drop policy if exists "Allow read debts" on public.debts;
-create policy "Allow read debts"
-on public.debts for select
-to anon, authenticated
-using (true);
-
 drop policy if exists "Allow insert debts" on public.debts;
-create policy "Allow insert debts"
-on public.debts for insert
-to anon, authenticated
-with check (true);
-
 drop policy if exists "Allow update debts" on public.debts;
-create policy "Allow update debts"
-on public.debts for update
-to anon, authenticated
-using (true)
-with check (true);
-
 drop policy if exists "Allow delete debts" on public.debts;
-create policy "Allow delete debts"
-on public.debts for delete
-to anon, authenticated
-using (true);
-
-grant select, insert, update, delete on public.debts to anon, authenticated;
+revoke all on public.debts from public, anon, authenticated;
 
 create table if not exists public.app_users (
   id uuid primary key default gen_random_uuid(),
@@ -855,18 +834,18 @@ update public.app_users
 set name = 'Sahil Jaryal', type = 'SUPER ADMIN', age = null, score = 26
 where email = 'sahil199926@gmail.com';
 
-grant execute on function public.login(text, text) to anon, authenticated;
-grant execute on function public.login_with_google(text, text, text) to anon, authenticated;
-grant execute on function public.get_profile(text) to anon, authenticated;
-grant execute on function public.update_profile(text, text, integer) to anon, authenticated;
-grant execute on function public.list_user_options(text) to anon, authenticated;
-grant execute on function public.list_users(text, integer, integer) to anon, authenticated;
-grant execute on function public.create_user(text, text, text, text, text, integer, numeric) to anon, authenticated;
-grant execute on function public.update_user(text, uuid, text, text, text, integer, numeric) to anon, authenticated;
-grant execute on function public.delete_user(text, uuid) to anon, authenticated;
-grant execute on function public.list_sheet_sync_imports(text) to anon, authenticated;
-grant execute on function public.list_sheet_person_aliases(text, text) to anon, authenticated;
-grant execute on function public.create_sheet_import_debts(
+revoke all on function public.login(text, text) from public, anon, authenticated;
+revoke all on function public.login_with_google(text, text, text) from public, anon, authenticated;
+revoke all on function public.get_profile(text) from public, anon, authenticated;
+revoke all on function public.update_profile(text, text, integer) from public, anon, authenticated;
+revoke all on function public.list_user_options(text) from public, anon, authenticated;
+revoke all on function public.list_users(text, integer, integer) from public, anon, authenticated;
+revoke all on function public.create_user(text, text, text, text, text, integer, numeric) from public, anon, authenticated;
+revoke all on function public.update_user(text, uuid, text, text, text, integer, numeric) from public, anon, authenticated;
+revoke all on function public.delete_user(text, uuid) from public, anon, authenticated;
+revoke all on function public.list_sheet_sync_imports(text) from public, anon, authenticated;
+revoke all on function public.list_sheet_person_aliases(text, text) from public, anon, authenticated;
+revoke all on function public.create_sheet_import_debts(
   text,
   text,
   text,
@@ -876,7 +855,7 @@ grant execute on function public.create_sheet_import_debts(
   date,
   jsonb,
   jsonb
-) to anon, authenticated;
+) from public, anon, authenticated;
 
 create or replace function public.list_debt_details()
 returns jsonb
@@ -954,8 +933,45 @@ as $$
   ) listed;
 $$;
 
-grant execute on function public.list_debt_details() to anon, authenticated;
-grant execute on function public.get_debt_detail(uuid) to anon, authenticated;
+create or replace function public.list_debt_details()
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  raise exception 'This unscoped function is retired. Use list_group_debts.';
+end;
+$$;
+
+create or replace function public.get_debt_detail(p_id uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  raise exception 'This unscoped function is retired. Use get_group_debt.';
+end;
+$$;
+
+revoke all on function public.list_debt_details() from public, anon, authenticated;
+revoke all on function public.get_debt_detail(uuid) from public, anon, authenticated;
+
+-- A schema refresh after the tenant migration must preserve its secure read
+-- policy. On a brand-new database this stays fail-closed until the migration
+-- creates groups and the auth.uid()-based membership helper.
+do $$
+begin
+  if to_regclass('public.groups') is not null
+    and to_regprocedure('public.is_group_member(uuid)') is not null then
+    execute 'drop policy if exists "Group members read debts" on public.debts';
+    execute 'create policy "Group members read debts" on public.debts for select to authenticated using (public.is_group_member(group_id))';
+    grant select on public.debts to authenticated;
+  end if;
+end $$;
 
 revoke all on function public.assert_super_admin(text) from public, anon, authenticated;
 revoke all on function public.user_public(public.app_users) from public, anon, authenticated;

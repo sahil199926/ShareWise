@@ -1,8 +1,7 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { useAuth } from '../../hooks/use-auth'
-import { isSuperAdmin } from '../../lib/auth-utils'
 import Logo from '../logo'
 import ProfileMenu from '../profile-menu'
 
@@ -10,7 +9,7 @@ const NAV_LINKS = [
   { to: '/dashboard', label: 'Overview', adminOnly: false },
   { to: '/debt-overview', label: 'Debts', adminOnly: false },
   { to: '/leaderboard', label: 'Leaderboard', adminOnly: false },
-  { to: '/master', label: 'People', adminOnly: true },
+  { to: '/master', label: 'Group details', adminOnly: false },
 ] as const
 
 type AppHeaderProps = {
@@ -20,6 +19,7 @@ type AppHeaderProps = {
   navAside?: ReactNode
   titleLeading?: ReactNode
   onLogout: () => void
+  showNavigation?: boolean
 }
 
 const AppHeader = ({
@@ -29,21 +29,44 @@ const AppHeader = ({
   navAside,
   titleLeading,
   onLogout,
+  showNavigation = true,
 }: AppHeaderProps) => {
-  const { user, isBootstrapping } = useAuth()
+  const { groups, activeGroup, selectGroup } = useAuth()
   const { pathname } = useLocation()
+  const navigate = useNavigate()
 
-  const visibleNavLinks = NAV_LINKS.filter((link) => {
-    if (!link.adminOnly) return true
-    if (isBootstrapping) return false
-    return isSuperAdmin(user)
-  })
+  const visibleNavLinks = NAV_LINKS
 
   return (
     <header className="border-b border-white/50 bg-white/45 backdrop-blur-xl">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-3 py-3 sm:py-4">
-          <Logo linkTo="/dashboard" size="md" />
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <Logo linkTo="/dashboard" size="md" />
+            {activeGroup ? (
+              <select
+                aria-label="Active group"
+                className="max-w-36 rounded-full border border-white/80 bg-white/70 px-3 py-2 text-xs font-medium text-medium sm:max-w-56 sm:text-sm"
+                value={activeGroup.id}
+                onChange={(event) => {
+                  if (event.target.value === '__create__') {
+                    navigate('/onboarding?create=1')
+                    return
+                  }
+                  selectGroup(event.target.value)
+                }}
+              >
+                {groups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+                {groups.length < 10 ? (
+                  <option value="__create__">＋ Create group</option>
+                ) : null}
+              </select>
+            ) : null}
+          </div>
 
           <div className="flex shrink-0 items-center gap-2">
             <ProfileMenu />
@@ -96,44 +119,46 @@ const AppHeader = ({
           ) : null}
         </div>
 
-        <nav className="-mb-px flex w-full flex-col gap-2 border-t border-divider py-2 min-[480px]:flex-row min-[480px]:flex-wrap min-[480px]:items-center">
-          <div className="flex flex-wrap gap-1">
-            {visibleNavLinks.map((link) => {
-              const isActive =
-                link.to === '/leaderboard'
-                  ? pathname.startsWith('/leaderboard')
-                  : pathname === link.to
+        {showNavigation ? (
+          <nav className="-mb-px flex w-full flex-col gap-2 border-t border-divider py-2 min-[480px]:flex-row min-[480px]:flex-wrap min-[480px]:items-center">
+            <div className="flex flex-wrap gap-1">
+              {visibleNavLinks.map((link) => {
+                const isActive =
+                  link.to === '/leaderboard'
+                    ? pathname.startsWith('/leaderboard')
+                    : pathname === link.to
 
-              return (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={`relative rounded-full px-3 py-1.5 text-xs font-medium transition sm:px-4 sm:text-sm ${
-                    isActive ? 'text-white' : 'text-low hover:text-high'
-                  }`}
-                >
-                  {isActive ? (
-                    <motion.span
-                      layoutId="karja-tab"
-                      className="absolute inset-0 rounded-full bg-brand shadow-sm"
-                      transition={{
-                        type: 'spring',
-                        stiffness: 420,
-                        damping: 34,
-                      }}
-                    />
-                  ) : null}
-                  <span className="relative z-10">{link.label}</span>
-                </Link>
-              )
-            })}
-          </div>
-          {navAside ? (
-            <div className="w-full min-[480px]:ml-auto min-[480px]:w-auto">
-              {navAside}
+                return (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className={`relative rounded-full px-3 py-1.5 text-xs font-medium transition sm:px-4 sm:text-sm ${
+                      isActive ? 'text-white' : 'text-low hover:text-high'
+                    }`}
+                  >
+                    {isActive ? (
+                      <motion.span
+                        layoutId="karja-tab"
+                        className="absolute inset-0 rounded-full bg-brand shadow-sm"
+                        transition={{
+                          type: 'spring',
+                          stiffness: 420,
+                          damping: 34,
+                        }}
+                      />
+                    ) : null}
+                    <span className="relative z-10">{link.label}</span>
+                  </Link>
+                )
+              })}
             </div>
-          ) : null}
-        </nav>
+            {navAside ? (
+              <div className="w-full min-[480px]:ml-auto min-[480px]:w-auto">
+                {navAside}
+              </div>
+            ) : null}
+          </nav>
+        ) : null}
       </div>
     </header>
   )

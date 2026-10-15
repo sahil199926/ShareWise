@@ -13,8 +13,8 @@ const App = () => {
             Supabase keys are missing
           </h1>
           <p className="mt-3 text-sm text-low">
-            In Vercel, add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY, then
-            redeploy. Leave the secret key off this site.
+            In Vercel, add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY,
+            then redeploy. Leave the secret key off this site.
           </p>
         </div>
       </div>

@@ -36,17 +36,20 @@ const DebtFormModal = ({
   useEffect(() => {
     if (!isOpen) return
 
-    setError('')
-    setForm(
-      debt
-        ? {
-            debtorId: debt.debtorId,
-            creditorId: debt.creditorId,
-            amount: String(debt.amount),
-            note: debt.note,
-          }
-        : emptyForm,
-    )
+    const timer = window.setTimeout(() => {
+      setError('')
+      setForm(
+        debt
+          ? {
+              debtorId: debt.debtorId,
+              creditorId: debt.creditorId,
+              amount: String(debt.amount),
+              note: debt.note,
+            }
+          : emptyForm,
+      )
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [debt, isOpen])
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -85,7 +88,7 @@ const DebtFormModal = ({
   }
 
   return (
-    <Modal isOpen={isOpen} panelClassName="max-w-lg">
+    <Modal isOpen={isOpen} panelClassName="max-w-lg" onClose={onClose}>
       <p className="section-label">
         {mode === 'create' ? 'New karja' : 'Edit karja'}
       </p>

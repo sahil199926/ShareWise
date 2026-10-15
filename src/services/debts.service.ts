@@ -1,238 +1,184 @@
 import { supabase } from '../lib/supabase'
-import {
-  canChangeDebtStatus,
-  canRequestDebtClose,
-  isDebtCreditor,
-  REOPEN_WINDOW_MS,
-} from '../lib/debt-permissions'
 import { mapDebtRow } from '../lib/debt-utils'
+import type { PaginationMeta } from '../types/pagination'
 import {
   DEBT_STATUS,
   type Debt,
   type DebtInput,
   type DebtRow,
 } from '../types/debt'
-import type { User } from '../types/auth'
 import type { ExpenseSubmission } from '../types/expense'
 
-const TABLE = 'debts'
+type DebtPage = { debts: Debt[]; pagination: PaginationMeta }
+type DebtFilters = {
+  page?: number
+  pageSize?: number
+  status?: Debt['status'] | null
+  personId?: string | null
+  days?: number | null
+}
 
-const toDebtError = (message: string | undefined, fallback: string) => {
+const explain = (message: string | undefined, fallback: string) => {
   if (
-    message?.includes('public.debts') ||
-    message?.includes('list_debt_details') ||
-    message?.includes('get_debt_detail') ||
+    message?.includes('list_group_debts') ||
+    message?.includes('get_group_debt') ||
     message?.includes('schema cache')
-  ) {
-    return 'Debts need a database update. Open the SQL editor and run supabase/schema.sql, then try again.'
-  }
-
+  )
+    return 'The secure group database migration has not been applied yet.'
   return message || fallback
 }
 
-const loadDebts = async (): Promise<Debt[]> => {
-  const { data, error } = await supabase.rpc('list_debt_details')
-
-  if (error) {
-    throw new Error(toDebtError(error.message, 'Failed to load debts'))
-  }
-
-  return ((data ?? []) as DebtRow[]).map(mapDebtRow)
+export const listDebtPage = async (
+  groupId: string,
+  filters: DebtFilters = {},
+): Promise<DebtPage> => {
+  const { data, error } = await supabase.rpc('list_group_debts', {
+    p_group_id: groupId,
+    p_page: filters.page ?? 1,
+    p_page_size: filters.pageSize ?? 20,
+    p_status: filters.status ?? null,
+    p_person_id: filters.personId ?? null,
+    p_days: filters.days ?? null,
+  })
+  if (error || !data)
+    throw new Error(explain(error?.message, 'Failed to load debts'))
+  const result = data as { debts?: DebtRow[]; pagination?: PaginationMeta }
+  if (!result.debts || !result.pagination)
+    throw new Error('Failed to load debts')
+  return { debts: result.debts.map(mapDebtRow), pagination: result.pagination }
 }
 
-export const listDebts = loadDebts
+// Summary screens are capped. The debt list uses listDebtPage directly so its
+// navigation and filters run inside Postgres instead of loading all history.
+export const listDebts = async (groupId: string, days?: number | null) =>
+  (await listDebtPage(groupId, { pageSize: 100, days })).debts
 
-export const getDebt = async (id: string) => {
-  const { data, error } = await supabase.rpc('get_debt_detail', { p_id: id })
-
+export const getDebt = async (groupId: string, id: string) => {
+  const { data, error } = await supabase.rpc('get_group_debt', {
+    p_group_id: groupId,
+    p_id: id,
+  })
   if (error) {
     if (error.message.includes('uuid')) return null
-    throw new Error(toDebtError(error.message, 'Failed to load this debt'))
+    throw new Error(explain(error.message, 'Failed to load this debt'))
   }
-
   return data ? mapDebtRow(data as DebtRow) : null
 }
 
-const readSavedDebt = async (id: string) => {
-  const debt = await getDebt(id)
+const readSavedDebt = async (groupId: string, id: string) => {
+  const debt = await getDebt(groupId, id)
   if (!debt) throw new Error('This debt was not found.')
   return debt
 }
 
-export const confirmDebtPayment = async (debt: Debt, user: User) => {
-  if (!isDebtCreditor(debt, user.email)) {
-    throw new Error('Only the person who will receive this can confirm it.')
-  }
-
-  const { data, error } = await supabase
-    .from(TABLE)
-    .update({
-      status: DEBT_STATUS.CLOSED,
-      closed_by_email: user.email.trim().toLowerCase(),
-      closed_at: new Date().toISOString(),
-    })
-    .eq('id', debt.id)
-    .eq('status', DEBT_STATUS.CLOSE_REQUESTED)
-    .select('id')
-    .maybeSingle()
-
-  if (error || !data) {
-    throw new Error(
-      toDebtError(
-        error?.message,
-        'This payment is not waiting to be confirmed.',
-      ),
-    )
-  }
-
-  return readSavedDebt(debt.id)
-}
-
-export const createDebt = async (admin: User, input: DebtInput) => {
-  const { data, error } = await supabase
-    .from(TABLE)
-    .insert({
-      debtor_id: input.debtorId,
-      creditor_id: input.creditorId,
-      amount: input.amount,
-      note: input.note.trim(),
-      status: DEBT_STATUS.OPEN,
-      created_by_email: admin.email.trim().toLowerCase(),
-      created_by_name: admin.name.trim(),
-    })
-    .select('id')
-    .single()
-
-  if (error || !data) {
-    throw new Error(toDebtError(error?.message, 'Failed to add debt'))
-  }
-
-  return readSavedDebt(data.id)
+export const createDebt = async (groupId: string, input: DebtInput) => {
+  const { data, error } = await supabase.rpc('create_group_debt', {
+    p_group_id: groupId,
+    p_debtor_id: input.debtorId,
+    p_creditor_id: input.creditorId,
+    p_amount: input.amount,
+    p_note: input.note.trim(),
+    p_expense_date: null,
+    p_batch_id: null,
+  })
+  if (error || !data)
+    throw new Error(explain(error?.message, 'Failed to add debt'))
+  return readSavedDebt(groupId, String(data))
 }
 
 export const createExpenseDebts = async (
-  admin: User,
+  groupId: string,
   input: ExpenseSubmission,
 ) => {
   if (!input.debts.length) return []
-
-  const batchId = crypto.randomUUID()
-  const rows = input.debts.map((debt) => ({
-    debtor_id: debt.debtorId,
-    creditor_id: debt.creditorId,
-    amount: debt.amount,
-    note: input.note.trim(),
-    expense_date: input.expenseDate,
-    batch_id: batchId,
-    status: DEBT_STATUS.OPEN,
-    created_by_email: admin.email.trim().toLowerCase(),
-    created_by_name: admin.name.trim(),
-  }))
-
-  const { data, error } = await supabase.from(TABLE).insert(rows).select('id')
-
-  if (error || !data || data.length !== rows.length) {
+  const { data, error } = await supabase.rpc('create_group_expense_debts', {
+    p_group_id: groupId,
+    p_note: input.note.trim(),
+    p_expense_date: input.expenseDate,
+    p_debts: input.debts,
+  })
+  if (error || !data)
     throw new Error(
-      toDebtError(error?.message, 'Failed to create all expense debts'),
+      explain(error?.message, 'Failed to create all expense debts'),
     )
-  }
-
-  return Promise.all(data.map((row) => readSavedDebt(row.id)))
+  return Promise.all((data as string[]).map((id) => readSavedDebt(groupId, id)))
 }
 
-export const updateDebt = async (id: string, input: DebtInput) => {
-  const { data, error } = await supabase
-    .from(TABLE)
-    .update({
-      debtor_id: input.debtorId,
-      creditor_id: input.creditorId,
-      amount: input.amount,
-      note: input.note.trim(),
-    })
-    .eq('id', id)
-    .select('id')
-    .maybeSingle()
-
-  if (error || !data) {
-    throw new Error(toDebtError(error?.message, 'Failed to update debt'))
-  }
-
-  return readSavedDebt(id)
+export const updateDebt = async (
+  groupId: string,
+  id: string,
+  input: DebtInput,
+) => {
+  const { error } = await supabase.rpc('update_group_debt', {
+    p_group_id: groupId,
+    p_id: id,
+    p_debtor_id: input.debtorId,
+    p_creditor_id: input.creditorId,
+    p_amount: input.amount,
+    p_note: input.note.trim(),
+  })
+  if (error) throw new Error(explain(error.message, 'Failed to update debt'))
+  return readSavedDebt(groupId, id)
 }
 
-export const requestDebtClose = async (debt: Debt, user: User) => {
-  const permission = canRequestDebtClose(debt, user.email)
-  if (!permission.ok) throw new Error(permission.message)
-
-  const { data, error } = await supabase
-    .from(TABLE)
-    .update({
-      status: DEBT_STATUS.CLOSE_REQUESTED,
-      requested_by_email: user.email.trim().toLowerCase(),
-      requested_at: new Date().toISOString(),
-    })
-    .eq('id', debt.id)
-    .eq('status', DEBT_STATUS.OPEN)
-    .select('id')
-    .maybeSingle()
-
-  if (error || !data) {
-    throw new Error(toDebtError(error?.message, 'Failed to request close'))
-  }
-
-  return readSavedDebt(debt.id)
+export const requestDebtClose = async (groupId: string, debtId: string) => {
+  const { error } = await supabase.rpc('request_group_debt_close', {
+    p_group_id: groupId,
+    p_id: debtId,
+  })
+  if (error) throw new Error(explain(error.message, 'Failed to request close'))
+  return readSavedDebt(groupId, debtId)
 }
 
 export const setDebtStatus = async (
+  groupId: string,
   debtId: string,
   status: Debt['status'],
-  user: User,
-  isAdmin = false,
 ) => {
-  const current = await getDebt(debtId)
-  if (!current) throw new Error('This debt was not found.')
-
-  const permission = canChangeDebtStatus(current, status, user.email, isAdmin)
-  if (!permission.ok) throw new Error(permission.message)
-
-  const payload: Record<string, unknown> = { status }
-
-  if (status === DEBT_STATUS.CLOSED) {
-    payload.closed_by_email = user.email.trim().toLowerCase()
-    payload.closed_at = new Date().toISOString()
-  } else {
-    payload.closed_by_email = null
-    payload.closed_at = null
-  }
-
-  if (status === DEBT_STATUS.OPEN) {
-    payload.requested_by_email = null
-    payload.requested_at = null
-  }
-
-  let query = supabase.from(TABLE).update(payload).eq('id', debtId)
-
-  if (status === DEBT_STATUS.CLOSED) {
-    query = query.in('status', [DEBT_STATUS.OPEN, DEBT_STATUS.CLOSE_REQUESTED])
-  } else if (status === DEBT_STATUS.OPEN && !isAdmin) {
-    query = query
-      .eq('status', DEBT_STATUS.CLOSED)
-      .gte('closed_at', new Date(Date.now() - REOPEN_WINDOW_MS).toISOString())
-  }
-
-  const { data, error } = await query.select('id').maybeSingle()
-
-  if (error || !data) {
-    throw new Error(toDebtError(error?.message, 'Failed to update status'))
-  }
-
-  return readSavedDebt(debtId)
+  const { error } = await supabase.rpc('set_group_debt_status', {
+    p_group_id: groupId,
+    p_id: debtId,
+    p_status: status,
+  })
+  if (error) throw new Error(explain(error.message, 'Failed to update status'))
+  return readSavedDebt(groupId, debtId)
 }
 
-export const deleteDebt = async (id: string) => {
-  const { error } = await supabase.from(TABLE).delete().eq('id', id)
+export const confirmDebtPayment = async (groupId: string, debtId: string) =>
+  setDebtStatus(groupId, debtId, DEBT_STATUS.CLOSED)
 
-  if (error) {
-    throw new Error(toDebtError(error.message, 'Failed to delete debt'))
+export const deleteDebt = async (groupId: string, id: string) => {
+  const { error } = await supabase.rpc('delete_group_debt', {
+    p_group_id: groupId,
+    p_id: id,
+  })
+  if (error) throw new Error(explain(error.message, 'Failed to delete debt'))
+}
+
+export const createDebtShareToken = async (
+  groupId: string,
+  personUserId: string,
+) => {
+  const { data, error } = await supabase.rpc('create_debt_share_token', {
+    p_group_id: groupId,
+    p_person_user_id: personUserId,
+    p_hours: 168,
+  })
+  if (error || !data)
+    throw new Error(explain(error?.message, 'Failed to create share link'))
+  return data as { token: string; expiresAt: string }
+}
+
+export const getSharedDebts = async (token: string) => {
+  const { data, error } = await supabase.rpc('get_shared_debts', {
+    p_token: token,
+  })
+  if (error || !data)
+    throw new Error(error?.message || 'This share link is invalid or expired')
+  const result = data as {
+    person: { id: string; name: string; email: string }
+    expiresAt: string
+    debts: DebtRow[]
   }
+  return { ...result, debts: result.debts.map(mapDebtRow) }
 }

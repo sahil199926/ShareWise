@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { getFirebaseAccessToken } from './firebase'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? ''
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? ''
@@ -12,7 +13,9 @@ const missingSupabase = () => {
 }
 
 export const supabase: SupabaseClient = supabaseConfigured
-  ? createClient(supabaseUrl, supabaseKey)
+  ? createClient(supabaseUrl, supabaseKey, {
+      accessToken: getFirebaseAccessToken,
+    })
   : new Proxy({} as SupabaseClient, {
       get() {
         missingSupabase()

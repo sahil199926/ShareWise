@@ -68,7 +68,7 @@ const mailApi = (): Plugin => ({
           return
         }
 
-        void handleSheetSyncRequest(body, env).then((result) => {
+        void handleSheetSyncRequest(body, env, req.headers).then((result) => {
           res.statusCode = result.status
           res.setHeader('Content-Type', 'application/json')
           res.end(JSON.stringify(result.body))
@@ -86,7 +86,7 @@ const mailApi = (): Plugin => ({
       }
 
       const url = new URL(req.url ?? '/', 'http://localhost')
-      const match = url.pathname.match(/^\/(leaderboard|share)\/([^/]+)$/)
+      const match = url.pathname.match(/^\/share\/([^/]+)$/)
       if (!match) {
         next()
         return
@@ -94,11 +94,9 @@ const mailApi = (): Plugin => ({
 
       const env = loadEnv(server.config.mode, process.cwd(), '')
       void buildSharePreview({
-        kind: match[1] === 'share' ? 'share' : 'leaderboard',
-        email: match[2],
+        token: match[1],
         origin: 'http://localhost:5173',
         env,
-        days: url.searchParams.get('days') ?? undefined,
       })
         .then((html) => {
           res.statusCode = 200

@@ -11,37 +11,28 @@ import {
   getOpenDebtTotals,
 } from '../../lib/debt-utils'
 import { setShareMeta, shareCopy } from '../../lib/share-copy'
-import { usePeopleFaces } from '../../hooks/use-people-faces'
-import { listDebts } from '../../services/debts.service'
+import { getSharedDebts } from '../../services/debts.service'
 import { DEBT_STATUS, type Debt } from '../../types/debt'
 
-const personName = (debts: Debt[], email: string) => {
-  const match = debts.find((debt) => debtInvolvesEmail(debt, email))
-  if (!match) return email
-
-  return match.debtorEmail.trim().toLowerCase() === email
-    ? match.debtorName
-    : match.creditorName
-}
-
 const PublicDebts = () => {
-  const { email: emailParam = '' } = useParams()
-  const email = decodeURIComponent(emailParam).trim().toLowerCase()
+  const { token = '' } = useParams()
   const [debts, setDebts] = useState<Debt[]>([])
+  const [person, setPerson] = useState({ name: '', email: '' })
+  const [expiresAt, setExpiresAt] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const [copyError, setCopyError] = useState(false)
-  const faces = usePeopleFaces(
-    debts.flatMap((debt) => [debt.debtorEmail, debt.creditorEmail]),
-  )
-
   useEffect(() => {
     let cancelled = false
 
-    listDebts()
-      .then((nextDebts) => {
-        if (!cancelled) setDebts(nextDebts)
+    getSharedDebts(token)
+      .then((result) => {
+        if (!cancelled) {
+          setDebts(result.debts)
+          setPerson(result.person)
+          setExpiresAt(result.expiresAt)
+        }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
@@ -55,7 +46,9 @@ const PublicDebts = () => {
     return () => {
       cancelled = true
     }
-  }, [email])
+  }, [token])
+
+  const email = person.email.trim().toLowerCase()
 
   const openDebts = useMemo(() => {
     return debts.filter(
@@ -64,14 +57,14 @@ const PublicDebts = () => {
     )
   }, [debts, email])
 
-  const name = personName(debts, email)
+  const name = person.name || 'Shared debts'
   const totals = useMemo(
     () => getOpenDebtTotals(openDebts, email),
     [email, openDebts],
   )
 
   useEffect(() => {
-    if (isLoading || name === email) return
+    if (isLoading || !person.name) return
     const copy = shareCopy({
       name,
       openOwe: totals.toGive,
@@ -84,7 +77,15 @@ const PublicDebts = () => {
       ).length,
     })
     return setShareMeta(copy.title, copy.description)
-  }, [email, isLoading, name, openDebts, totals.toGive, totals.toReceive])
+  }, [
+    email,
+    isLoading,
+    name,
+    openDebts,
+    person.name,
+    totals.toGive,
+    totals.toReceive,
+  ])
 
   const handleCopySummary = () => {
     const text = buildDebtShareText({
@@ -128,7 +129,10 @@ const PublicDebts = () => {
           {`${name}'s open karja`}
         </h1>
         <p className="mt-2 max-w-xl text-sm text-low">
-          Anyone with this link can see the debts that are still open.
+          Anyone with this signed link can see the debts that are still open
+          {expiresAt
+            ? ` until ${new Date(expiresAt).toLocaleString('en-IN')}.`
+            : '.'}
         </p>
 
         {!isLoading && !error ? (
@@ -195,7 +199,7 @@ const PublicDebts = () => {
                 <DebtCard
                   key={debt.id}
                   debt={debt}
-                  faces={faces}
+                  faces={{}}
                   currentUserEmail={email}
                 />
               ))}

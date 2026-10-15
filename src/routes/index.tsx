@@ -1,12 +1,12 @@
 import { Navigate } from 'react-router-dom'
 import type { RouteObject } from 'react-router-dom'
-import AdminRoute from '../components/admin-route'
 import ProtectedRoute from '../components/protected-route'
 import LazyRoute from './lazy-route'
 import {
   ConfirmPaymentPage,
   DashboardPage,
   DebtOverviewPage,
+  GroupOnboardingPage,
   LoginPage,
   LeaderboardPage,
   LeaderboardPersonPage,
@@ -21,7 +21,7 @@ export const routes: RouteObject[] = [
     element: <Navigate to="/dashboard" replace />,
   },
   {
-    path: '/confirm-payment/:id',
+    path: '/confirm-payment/:groupId/:id',
     element: (
       <ProtectedRoute>
         <LazyRoute>
@@ -31,7 +31,7 @@ export const routes: RouteObject[] = [
     ),
   },
   {
-    path: '/share/:email',
+    path: '/share/:token',
     element: (
       <LazyRoute>
         <PublicDebtsPage />
@@ -41,17 +41,21 @@ export const routes: RouteObject[] = [
   {
     path: '/leaderboard',
     element: (
-      <LazyRoute>
-        <LeaderboardPage />
-      </LazyRoute>
+      <ProtectedRoute>
+        <LazyRoute>
+          <LeaderboardPage />
+        </LazyRoute>
+      </ProtectedRoute>
     ),
   },
   {
     path: '/leaderboard/:email',
     element: (
-      <LazyRoute>
-        <LeaderboardPersonPage />
-      </LazyRoute>
+      <ProtectedRoute>
+        <LazyRoute>
+          <LeaderboardPersonPage />
+        </LazyRoute>
+      </ProtectedRoute>
     ),
   },
   {
@@ -60,6 +64,16 @@ export const routes: RouteObject[] = [
       <LazyRoute>
         <LoginPage />
       </LazyRoute>
+    ),
+  },
+  {
+    path: '/onboarding',
+    element: (
+      <ProtectedRoute allowWithoutGroup>
+        <LazyRoute>
+          <GroupOnboardingPage />
+        </LazyRoute>
+      </ProtectedRoute>
     ),
   },
   {
@@ -96,11 +110,9 @@ export const routes: RouteObject[] = [
     path: '/master',
     element: (
       <ProtectedRoute>
-        <AdminRoute>
-          <LazyRoute>
-            <MasterPage />
-          </LazyRoute>
-        </AdminRoute>
+        <LazyRoute>
+          <MasterPage />
+        </LazyRoute>
       </ProtectedRoute>
     ),
   },

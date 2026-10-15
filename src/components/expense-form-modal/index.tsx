@@ -214,9 +214,9 @@ const ExpenseFormModal = ({
       variant="responsive-sheet"
       overlayClassName="expense-sheet-overlay"
       panelClassName="expense-sheet"
+      onClose={close}
     >
       <div className="expense-sheet-shell">
-        <div className="expense-drawer-handle" aria-hidden="true" />
         <div className="expense-sheet-header">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -366,9 +366,7 @@ const ExpenseFormModal = ({
               <AssignmentMeter
                 label="Assigned"
                 value={`${formatRupee(paidTotal)} of ${formatRupee(totalAmount)}`}
-                percent={
-                  totalAmount ? (paidTotal / totalAmount) * 100 : 0
-                }
+                percent={totalAmount ? (paidTotal / totalAmount) * 100 : 0}
               />
               <div className="mt-4 divide-y divide-divider rounded-2xl border border-divider bg-white/55">
                 {people.map((person) => (

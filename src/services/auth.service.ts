@@ -1,105 +1,16 @@
-import {
-  firebaseReady,
-  readGoogleIdToken,
-  signInWithGoogleIdToken,
-  signInWithGooglePopup,
-} from '../lib/firebase'
+import { signInWithGooglePopup } from '../lib/firebase'
 import { supabase } from '../lib/supabase'
-import type { User } from '../types/auth'
+import type { AuthContextPayload } from '../types/auth'
 
-export const NO_PLATFORM_ACCESS = "You don't have access to this platform."
-
-const accessError = (message: string) => {
-  if (!message || message.includes('not on the people list')) {
-    return NO_PLATFORM_ACCESS
-  }
-
-  return message
+export const signInWithGoogle = async (returnPath = '/dashboard') => {
+  sessionStorage.setItem('karja_auth_return_path', returnPath)
+  await signInWithGooglePopup()
 }
 
-const toUser = (value: unknown): User => {
-  const user = value as Partial<User>
-
-  if (!user?.email || !user.name) {
-    throw new Error('Could not sign in')
-  }
-
-  return {
-    name: user.name,
-    email: user.email,
-    type: user.type ?? 'User',
-    age: user.age ?? null,
-    score: user.score ?? null,
-    avatarUrl: user.avatarUrl ?? null,
-  }
-}
-
-export const signInWithGoogle = async () => {
-  const profile = await signInWithGooglePopup()
-  return loginWithGoogle(profile.email, profile.googleId, profile.avatarUrl)
-}
-
-export const signInWithGoogleOneTap = async (idToken: string) => {
-  try {
-    if (firebaseReady) {
-      const profile = await signInWithGoogleIdToken(idToken)
-      return loginWithGoogle(profile.email, profile.googleId, profile.avatarUrl)
-    }
-  } catch (err) {
-    const code =
-      err && typeof err === 'object' && 'code' in err ? String(err.code) : ''
-
-    if (
-      code &&
-      code !== 'auth/invalid-credential' &&
-      code !== 'auth/argument-error' &&
-      code !== 'auth/operation-not-allowed'
-    ) {
-      throw err
-    }
-  }
-
-  const profile = readGoogleIdToken(idToken)
-  return loginWithGoogle(profile.email, profile.googleId, profile.avatarUrl)
-}
-
-const loginWithGoogle = async (
-  email: string,
-  googleId: string,
-  avatarUrl: string,
-) => {
-  const withPhoto = await supabase.rpc('login_with_google', {
-    p_email: email,
-    p_google_id: googleId,
-    p_avatar_url: avatarUrl || null,
-  })
-
-  const photoMessage = withPhoto.error?.message ?? ''
-  const photoFnMissing =
-    photoMessage.includes('schema cache') ||
-    photoMessage.includes('p_avatar_url')
-
-  const { data, error } = photoFnMissing
-    ? await supabase.rpc('login_with_google', {
-        p_email: email,
-        p_google_id: googleId,
-      })
-    : withPhoto
-
+export const getMyContext = async () => {
+  const { data, error } = await supabase.rpc('get_my_context')
   if (error || !data) {
-    const message = error?.message ?? ''
-    throw new Error(
-      message.includes('login_with_google') || message.includes('schema cache')
-        ? 'Google sign-in is not ready yet. Run the latest supabase/schema.sql in the SQL editor, then try again.'
-        : accessError(message),
-    )
+    throw new Error(error?.message || 'Could not load your groups')
   }
-
-  const user = toUser(data)
-
-  if (!user.avatarUrl && avatarUrl) {
-    user.avatarUrl = avatarUrl
-  }
-
-  return user
+  return data as AuthContextPayload
 }

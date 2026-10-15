@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import AppHeader from '../app-header'
 import Avatar from '../avatar'
 import { ProfileFieldsSkeleton, Skeleton } from '../skeleton'
 import { useAuth } from '../../hooks/use-auth'
-import { getProfile, updateProfile } from '../../services/profile.service'
+import { updateProfile } from '../../services/profile.service'
 import type { User } from '../../types/auth'
 import type { ProfileUpdateInput } from '../../types/profile'
 
@@ -42,37 +42,17 @@ const ProfileField = ({ label, value, hint }: ProfileFieldProps) => {
 }
 
 const Profile = () => {
-  const { user, updateUser, logout } = useAuth()
+  const { user, groups, selectGroup, updateUser, logout } = useAuth()
   const navigate = useNavigate()
   const [profile, setProfile] = useState<User | null>(user)
   const [form, setForm] = useState<ProfileUpdateInput>(
     user ? toFormState(user) : { name: '', age: null },
   )
   const [isEditing, setIsEditing] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const isLoading = false
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-
-  useEffect(() => {
-    if (!user?.email) return
-
-    getProfile(user.email)
-      .then((freshProfile) => {
-        setProfile(freshProfile)
-        setForm(toFormState(freshProfile))
-        updateUser(freshProfile)
-        setError('')
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : 'Failed to load profile')
-        setProfile(user)
-        setForm(toFormState(user))
-      })
-      .finally(() => {
-        setIsLoading(false)
-      })
-  }, [user, updateUser])
 
   const handleLogout = () => {
     logout()
@@ -113,7 +93,7 @@ const Profile = () => {
     setSuccess('')
 
     try {
-      const updated = await updateProfile(user.email, form)
+      const updated = await updateProfile(user, form)
       const nextUser = {
         ...updated,
         avatarUrl: updated.avatarUrl || user.avatarUrl,
@@ -135,12 +115,21 @@ const Profile = () => {
   }
 
   const displayUser = profile
-    ? { ...profile, avatarUrl: profile.avatarUrl || user.avatarUrl }
+    ? {
+        ...profile,
+        type: user.type,
+        role: user.role,
+        avatarUrl: profile.avatarUrl || user.avatarUrl,
+      }
     : user
 
   return (
     <div className="page-shell">
-      <AppHeader title="My Profile" onLogout={handleLogout} />
+      <AppHeader
+        title="My Profile"
+        onLogout={handleLogout}
+        showNavigation={false}
+      />
 
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
         <Link to="/dashboard" className="link-accent">
@@ -280,8 +269,53 @@ const Profile = () => {
           </div>
         </div>
 
+        <section className="card mt-6 p-6 sm:p-8">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="section-label">Joined groups</p>
+              <h2 className="mt-2 text-xl font-semibold text-high">
+                Your communities
+              </h2>
+            </div>
+            <p className="text-sm text-low">{groups.length} of 10 groups</p>
+          </div>
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            {groups.map((group) => (
+              <article
+                key={group.id}
+                className="rounded-2xl border border-divider bg-surface p-4"
+              >
+                <h3 className="font-semibold text-high">{group.name}</h3>
+                <p className="mt-1 text-sm capitalize text-low">
+                  {group.role} · up to {group.memberLimit} members
+                </p>
+                <button
+                  type="button"
+                  className="btn-secondary mt-4"
+                  onClick={() => {
+                    selectGroup(group.id)
+                    navigate('/dashboard')
+                  }}
+                >
+                  Open group
+                </button>
+              </article>
+            ))}
+          </div>
+
+          {groups.length < 10 ? (
+            <Link
+              to="/onboarding?create=1"
+              className="btn-primary mt-5 inline-flex"
+            >
+              Create another group
+            </Link>
+          ) : null}
+        </section>
+
         <p className="mt-4 text-center text-xs text-low">
-          People and debts both live in Karja Tracker.
+          Your profile is shared across groups; debts remain isolated per group.
         </p>
       </main>
     </div>

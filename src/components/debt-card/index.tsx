@@ -86,7 +86,9 @@ const DebtCard = ({
         : 'will give'
 
   return (
-    <article className={`glass-card p-5 ${toneClass}`}>
+    <article
+      className={`glass-card flex min-h-72 h-full flex-col p-5 ${toneClass}`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className={`text-2xl font-bold tracking-tight ${amountClass}`}>
@@ -115,11 +117,18 @@ const DebtCard = ({
         <DebtStatusBadge status={debt.status} />
       </div>
 
-      {debt.note ? (
-        <p className="mt-3 text-sm text-medium">{debt.note}</p>
-      ) : null}
+      <div className="mt-3 min-h-[3.75rem]">
+        {debt.note ? (
+          <p
+            className="line-clamp-3 text-sm leading-5 text-medium"
+            title={debt.note}
+          >
+            {debt.note}
+          </p>
+        ) : null}
+      </div>
 
-      <p className="mt-4 text-xs text-low">
+      <p className="mt-3 text-xs text-low">
         {debt.expenseDate
           ? `Expense ${formatDebtDate(debt.expenseDate)} · added ${formatDebtDate(debt.createdAt)}`
           : `Added ${formatDebtDate(debt.createdAt)}`}
@@ -132,7 +141,7 @@ const DebtCard = ({
       </p>
 
       {canRequestClose || canCreditorClose || canPutBack || isAdmin ? (
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-auto flex flex-wrap gap-2 pt-4">
           {canRequestClose ? (
             <button
               type="button"

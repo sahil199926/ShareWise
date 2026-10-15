@@ -1,4 +1,8 @@
 project_id = "karja-tracker"
 
+[auth.third_party.firebase]
+enabled = true
+project_id = "karja-app"
+
 [functions.daily-debt-reminder]
 verify_jwt = false

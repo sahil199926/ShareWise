@@ -16,7 +16,6 @@ type UserFormModalProps = {
 const emptyForm: MasterUserInput = {
   name: '',
   email: '',
-  password: '',
   type: DEFAULT_USER_TYPE,
   age: null,
   score: null,
@@ -30,7 +29,6 @@ const getDefaultForm = (
     return {
       name: initialData.name,
       email: initialData.email,
-      password: '',
       type: initialData.type || DEFAULT_USER_TYPE,
       age: initialData.age,
       score: initialData.score,
@@ -86,14 +84,15 @@ const UserFormModal = ({
     <Modal
       isOpen={isOpen}
       panelClassName="max-h-[90vh] max-w-lg overflow-y-auto"
+      onClose={handleClose}
     >
       <h2 className="text-lg font-semibold text-high">
         {mode === 'create' ? 'Add user' : 'Edit user'}
       </h2>
       <p className="mt-1 text-sm text-low">
         {mode === 'edit'
-          ? 'Email cannot be changed. Leave password blank to keep the current one.'
-          : 'Add someone who can sign in and be part of a karja.'}
+          ? 'Email cannot be changed. Access is always through their verified Google account.'
+          : 'Invite a Google account to this group. They become active after signing in.'}
       </p>
 
       <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
@@ -126,19 +125,6 @@ const UserFormModal = ({
                 className="input-field"
               />
             )}
-          </div>
-
-          <div className="sm:col-span-2">
-            <label className="field-label">PASSWORD</label>
-            <input
-              type="password"
-              value={form.password}
-              onChange={(e) => handleChange('password', e.target.value)}
-              required={mode === 'create'}
-              placeholder={mode === 'edit' ? 'Leave blank to keep current' : ''}
-              disabled={isSubmitting}
-              className="input-field"
-            />
           </div>
 
           <div>

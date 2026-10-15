@@ -33,7 +33,7 @@ import type { MasterUserOption } from '../../types/user-option'
 const firstName = (name: string) => name.trim().split(/\s+/)[0] || name
 
 const Dashboard = () => {
-  const { user, logout } = useAuth()
+  const { user, activeGroup, logout } = useAuth()
   const navigate = useNavigate()
   const isAdmin = isSuperAdmin(user)
 
@@ -47,12 +47,12 @@ const Dashboard = () => {
   )
 
   useEffect(() => {
-    if (!user?.email) return
+    if (!user?.email || !activeGroup) return
 
     let cancelled = false
 
     const loadPeople = isAdmin
-      ? listMasterUserOptions(user.email)
+      ? listMasterUserOptions(activeGroup.id)
           .then((nextUsers) => {
             if (!cancelled) setUsers(nextUsers)
           })
@@ -65,7 +65,7 @@ const Dashboard = () => {
           })
       : Promise.resolve()
 
-    const loadKarja = listDebts()
+    const loadKarja = listDebts(activeGroup.id)
       .then((nextDebts) => {
         if (cancelled) return
         setDebts(nextDebts)
@@ -89,7 +89,7 @@ const Dashboard = () => {
     return () => {
       cancelled = true
     }
-  }, [isAdmin, user?.email])
+  }, [activeGroup, isAdmin, user?.email])
 
   const people = useMemo(() => {
     const directory = mergePeople(users, debts)
@@ -103,7 +103,7 @@ const Dashboard = () => {
     }
 
     return [{ name: user.name, email: user.email }, ...directory]
-  }, [debts, user?.email, user?.name, users])
+  }, [debts, user, users])
 
   const subject =
     people.find(

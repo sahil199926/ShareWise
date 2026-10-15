@@ -9,7 +9,37 @@ const positiveInteger = (value, fallback, maximum) => {
   return Math.min(parsed, maximum)
 }
 
-export const handleSheetSyncRequest = async (body, env = process.env) => {
+const authorizeGroup = async (body, headers, env) => {
+  const authorization = text(headers?.authorization)
+  const groupId = text(body?.groupId)
+  const supabaseUrl = text(env.SUPABASE_URL || env.VITE_SUPABASE_URL)
+  const publishableKey = text(
+    env.SUPABASE_PUBLISHABLE_KEY || env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  )
+  if (!authorization.startsWith('Bearer ') || !groupId) return false
+  if (!supabaseUrl.startsWith('https://') || !publishableKey) return false
+
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/rpc/can_use_sheet_sync`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: publishableKey,
+        Authorization: authorization,
+      },
+      body: JSON.stringify({ p_group_id: groupId }),
+    },
+  )
+  if (!response.ok) return false
+  return (await response.json().catch(() => false)) === true
+}
+
+export const handleSheetSyncRequest = async (
+  body,
+  env = process.env,
+  headers = {},
+) => {
   const action = text(body?.action)
   const endpoint = text(env.SHEET_SYNC_API_URL)
   const spreadsheetId =
@@ -18,7 +48,7 @@ export const handleSheetSyncRequest = async (body, env = process.env) => {
   if (!ALLOWED_ACTIONS.has(action)) {
     return { status: 400, body: { error: 'Unknown sheet sync action.' } }
   }
-  if (!text(body?.requesterEmail)) {
+  if (!(await authorizeGroup(body, headers, env).catch(() => false))) {
     return { status: 401, body: { error: 'Sign in before syncing a sheet.' } }
   }
   if (!endpoint.startsWith('https://script.google.com/macros/s/')) {

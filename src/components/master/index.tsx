@@ -17,9 +17,10 @@ import type { MasterUser, MasterUserInput } from '../../types/master-user'
 import type { PaginationMeta } from '../../types/pagination'
 import { useAuth } from '../../hooks/use-auth'
 import { isSameUserEmail } from '../../lib/auth-utils'
+import { deleteGroup, leaveGroup } from '../../services/groups.service'
 
 const Master = () => {
-  const { user, logout } = useAuth()
+  const { user, activeGroup, refreshContext, logout } = useAuth()
   const navigate = useNavigate()
 
   const [users, setUsers] = useState<MasterUser[]>([])
@@ -37,12 +38,18 @@ const Master = () => {
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
   const [editingUser, setEditingUser] = useState<MasterUser | undefined>()
   const [userToDelete, setUserToDelete] = useState<MasterUser | null>(null)
+  const [groupAction, setGroupAction] = useState<'delete' | 'leave' | null>(
+    null,
+  )
+
+  const canManage =
+    activeGroup?.role === 'owner' || activeGroup?.role === 'admin'
 
   const reloadUsers = useCallback(
     (page: number) => {
-      if (!user?.email) return
+      if (!activeGroup) return
 
-      listUsers(user.email, page)
+      listUsers(activeGroup.id, page)
         .then((result) => {
           setUsers(result.users)
           setPagination(result.pagination)
@@ -55,7 +62,7 @@ const Master = () => {
           setIsLoading(false)
         })
     },
-    [user],
+    [activeGroup],
   )
 
   useEffect(() => {
@@ -88,15 +95,15 @@ const Master = () => {
     setIsSubmitting(true)
     setIsLoading(true)
 
-    if (!user?.email) return
+    if (!activeGroup) return
 
     try {
       if (modalMode === 'create') {
-        await createUser(user.email, data)
+        await createUser(activeGroup.id, data)
         setCurrentPage(1)
         reloadUsers(1)
       } else if (editingUser) {
-        await updateUser(user.email, editingUser.id, data)
+        await updateUser(activeGroup.id, editingUser.id, data)
         reloadUsers(currentPage)
       }
     } finally {
@@ -114,12 +121,12 @@ const Master = () => {
   }
 
   const handleDelete = async () => {
-    if (!userToDelete || !user?.email) return
+    if (!userToDelete || !activeGroup) return
 
     setIsLoading(true)
 
     try {
-      await deleteUser(user.email, userToDelete.id)
+      await deleteUser(activeGroup.id, userToDelete.id)
       setUserToDelete(null)
       reloadUsers(currentPage)
     } catch (err) {
@@ -128,25 +135,67 @@ const Master = () => {
     }
   }
 
+  const handleGroupAction = async () => {
+    if (!activeGroup || !groupAction) return
+    setIsLoading(true)
+    setError('')
+    try {
+      if (groupAction === 'delete') await deleteGroup(activeGroup.id)
+      else await leaveGroup(activeGroup.id)
+      setGroupAction(null)
+      await refreshContext()
+      navigate('/dashboard', { replace: true })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Group action failed')
+      setIsLoading(false)
+    }
+  }
+
   return (
     <div className="page-shell">
       <AppHeader
-        title="People"
-        subtitle="People stored in Karja Tracker"
+        title="Group details"
+        subtitle="Group settings, capacity, and members"
         onLogout={handleLogout}
         actions={
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="btn-primary"
-          >
-            Add user
-          </button>
+          canManage ? (
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="btn-primary"
+            >
+              Add user
+            </button>
+          ) : undefined
         }
       />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {error ? <div className="alert-error mb-6">{error}</div> : null}
+
+        {activeGroup ? (
+          <section className="card mb-6 p-5 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="section-label">Current group</p>
+                <h2 className="mt-2 text-xl font-semibold text-high">
+                  {activeGroup.name}
+                </h2>
+                <p className="mt-1 text-sm capitalize text-low">
+                  Your role: {activeGroup.role}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-emerald/8 px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-low">
+                  Member capacity
+                </p>
+                <p className="mt-1 text-lg font-semibold text-high">
+                  {pagination.total} of {activeGroup.memberLimit}
+                </p>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {isLoading ? (
           <PeopleTableSkeleton />
@@ -154,15 +203,19 @@ const Master = () => {
           <div className="rounded-2xl border border-dashed border-divider bg-surface px-6 py-16 text-center">
             <p className="text-sm font-medium text-medium">No users found</p>
             <p className="mt-1 text-sm text-low">
-              Add the first person who can sign in and hold karja.
+              {canManage
+                ? 'Add the first person who can sign in and hold karja.'
+                : 'This group has no visible members yet.'}
             </p>
-            <button
-              type="button"
-              onClick={openCreateModal}
-              className="btn-primary mt-4"
-            >
-              Add user
-            </button>
+            {canManage ? (
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="btn-primary mt-4"
+              >
+                Add user
+              </button>
+            ) : null}
           </div>
         ) : (
           <>
@@ -175,6 +228,7 @@ const Master = () => {
               currentUserEmail={user?.email}
               onEdit={openEditModal}
               onDelete={askDelete}
+              canManage={canManage}
             />
 
             <div className="mt-6">
@@ -187,13 +241,33 @@ const Master = () => {
             </div>
           </>
         )}
+
+        {activeGroup ? (
+          <section className="mt-8 rounded-2xl border border-red-200 bg-red-50/70 p-5 sm:p-6">
+            <h2 className="text-lg font-semibold text-red-800">
+              {canManage ? 'Delete this group' : 'Leave this group'}
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm text-red-700">
+              {canManage
+                ? 'This permanently deletes the group, all memberships, every debt, sheet import, share token, and audit detail in it.'
+                : 'This permanently removes your membership and every debt in this group where you owe or receive money.'}
+            </p>
+            <button
+              type="button"
+              className="btn-danger mt-4"
+              onClick={() => setGroupAction(canManage ? 'delete' : 'leave')}
+            >
+              {canManage ? 'Delete group' : 'Leave group'}
+            </button>
+          </section>
+        ) : null}
       </main>
 
       <ConfirmModal
         isOpen={Boolean(userToDelete)}
         message={
           userToDelete
-            ? `Delete ${userToDelete.name} (${userToDelete.email})? This cannot be undone.`
+            ? `Permanently delete ${userToDelete.name} (${userToDelete.email}) from this group? All debts where this person owes or receives money will also be physically deleted. This cannot be undone.`
             : ''
         }
         isConfirming={isLoading}
@@ -205,15 +279,38 @@ const Master = () => {
         }}
       />
 
-      <UserFormModal
-        key={`${modalMode}-${editingUser?.id ?? 'new'}`}
-        isOpen={isModalOpen}
-        mode={modalMode}
-        initialData={editingUser}
-        isSubmitting={isSubmitting}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleSubmit}
+      <ConfirmModal
+        isOpen={Boolean(groupAction)}
+        title={
+          groupAction === 'delete' ? 'Delete this group?' : 'Leave this group?'
+        }
+        message={
+          groupAction === 'delete'
+            ? `Permanently delete ${activeGroup?.name ?? 'this group'} and all of its members, debts, imports, shares, and history? This cannot be undone.`
+            : `Permanently leave ${activeGroup?.name ?? 'this group'}? All debts involving you inside this group will be hard deleted. This cannot be undone.`
+        }
+        confirmLabel={groupAction === 'delete' ? 'Delete group' : 'Leave group'}
+        pendingLabel={
+          groupAction === 'delete' ? 'Deleting group…' : 'Leaving group…'
+        }
+        isConfirming={isLoading}
+        onCancel={() => {
+          if (!isLoading) setGroupAction(null)
+        }}
+        onConfirm={() => void handleGroupAction()}
       />
+
+      {canManage ? (
+        <UserFormModal
+          key={`${modalMode}-${editingUser?.id ?? 'new'}`}
+          isOpen={isModalOpen}
+          mode={modalMode}
+          initialData={editingUser}
+          isSubmitting={isSubmitting}
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={handleSubmit}
+        />
+      ) : null}
     </div>
   )
 }

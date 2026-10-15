@@ -33,6 +33,7 @@ const readDebt = (value) => {
 
   const debt = {
     id: String(value.id ?? '').trim(),
+    groupId: String(value.groupId ?? '').trim(),
     debtorName: String(value.debtorName ?? '').trim(),
     debtorEmail: String(value.debtorEmail ?? '')
       .trim()
@@ -46,7 +47,8 @@ const readDebt = (value) => {
   }
 
   if (
-    !debt.id ||
+    !/^[0-9a-f-]{36}$/i.test(debt.id) ||
+    !/^[0-9a-f-]{36}$/i.test(debt.groupId) ||
     !debt.debtorName ||
     !debt.creditorName ||
     !isEmail(debt.debtorEmail) ||
@@ -184,7 +186,7 @@ const createdMessages = (debt) => {
 const paymentMessages = (debt, origin) => {
   const amount = rupee(debt.amount)
   const confirmUrl = origin
-    ? `${origin}/confirm-payment/${encodeURIComponent(debt.id)}`
+    ? `${origin}/confirm-payment/${encodeURIComponent(debt.groupId)}/${encodeURIComponent(debt.id)}`
     : ''
   const confirmLine = confirmUrl
     ? `Confirm you received it: ${confirmUrl}`

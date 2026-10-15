@@ -10,33 +10,32 @@ const toUser = (value: unknown): User => {
   }
 
   return {
+    id: user.id ?? '',
     name: user.name,
     email: user.email,
     type: user.type ?? 'User',
+    role: user.role ?? null,
     age: user.age ?? null,
     score: user.score ?? null,
     avatarUrl: user.avatarUrl ?? null,
   }
 }
 
-export const getProfile = async (email: string) => {
-  const { data, error } = await supabase.rpc('get_profile', {
-    p_email: email,
-  })
+export const getProfile = async (currentUser: User) => {
+  const { data, error } = await supabase.rpc('get_my_profile')
 
   if (error || !data) {
     throw new Error(error?.message || 'Failed to load profile')
   }
 
-  return toUser(data)
+  return { ...toUser(data), type: currentUser.type, role: currentUser.role }
 }
 
 export const updateProfile = async (
-  email: string,
+  currentUser: User,
   profile: ProfileUpdateInput,
 ) => {
-  const { data, error } = await supabase.rpc('update_profile', {
-    p_email: email,
+  const { data, error } = await supabase.rpc('update_my_profile', {
     p_name: profile.name,
     p_age: profile.age,
   })
@@ -45,5 +44,5 @@ export const updateProfile = async (
     throw new Error(error?.message || 'Failed to update profile')
   }
 
-  return toUser(data)
+  return { ...toUser(data), type: currentUser.type, role: currentUser.role }
 }

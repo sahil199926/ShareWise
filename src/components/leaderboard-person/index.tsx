@@ -21,7 +21,7 @@ import {
 import type { Debt } from '../../types/debt'
 
 const LeaderboardPerson = () => {
-  const { user } = useAuth()
+  const { user, activeGroup } = useAuth()
   const { email: emailParam = '' } = useParams()
   const email = decodeURIComponent(emailParam).trim().toLowerCase()
   const [debts, setDebts] = useState<Debt[]>([])
@@ -37,13 +37,14 @@ const LeaderboardPerson = () => {
   )
 
   useEffect(() => {
+    if (!activeGroup) return
     let cancelled = false
 
-    listDebts()
+    listDebts(activeGroup.id)
       .then(async (nextDebts) => {
         if (cancelled) return
         setDebts(nextDebts)
-        const nextFaces = await listLeaderboardFaces([email])
+        const nextFaces = await listLeaderboardFaces(activeGroup.id, [email])
         if (!cancelled) setFaces(nextFaces)
       })
       .catch((err: unknown) => {
@@ -60,7 +61,7 @@ const LeaderboardPerson = () => {
     return () => {
       cancelled = true
     }
-  }, [email])
+  }, [activeGroup, email])
 
   const person = useMemo(() => {
     return (

@@ -7,7 +7,6 @@ import {
   listSheetImports,
   previewExpenseSheet,
 } from '../../services/sheet-sync.service'
-import type { User } from '../../types/auth'
 import type { ExpenseDebtProposal } from '../../types/expense'
 import type {
   SheetImportReceipt,
@@ -21,7 +20,7 @@ import Pagination from '../pagination'
 
 type SheetSyncModalProps = {
   isOpen: boolean
-  user: User
+  groupId: string
   users: MasterUserOption[]
   isSubmitting: boolean
   onClose: () => void
@@ -39,7 +38,7 @@ const localDate = () => {
 
 const SheetSyncModal = ({
   isOpen,
-  user,
+  groupId,
   users,
   isSubmitting,
   onClose,
@@ -70,8 +69,8 @@ const SheetSyncModal = ({
     setError('')
     try {
       const [nextList, nextImports] = await Promise.all([
-        listExpenseSheets(user.email, page, search),
-        listSheetImports(user.email),
+        listExpenseSheets(groupId, page, search),
+        listSheetImports(groupId),
       ])
       setList(nextList)
       setImports(nextImports)
@@ -80,7 +79,7 @@ const SheetSyncModal = ({
     } finally {
       setIsLoading(false)
     }
-  }, [page, search, user.email])
+  }, [groupId, page, search])
 
   useEffect(() => {
     if (!isOpen || step !== 0) return
@@ -93,11 +92,8 @@ const SheetSyncModal = ({
     setIsPreviewing(true)
     setError('')
     try {
-      const nextPreview = await previewExpenseSheet(user.email, sheetId)
-      const aliases = await listSheetAliases(
-        user.email,
-        nextPreview.spreadsheetId,
-      )
+      const nextPreview = await previewExpenseSheet(groupId, sheetId)
+      const aliases = await listSheetAliases(groupId, nextPreview.spreadsheetId)
       setPreview(nextPreview)
       setMappings(initialSheetMappings(nextPreview.people, users, aliases))
       setNote(nextPreview.sheetTitle)
@@ -183,9 +179,9 @@ const SheetSyncModal = ({
       variant="responsive-sheet"
       overlayClassName="expense-sheet-overlay"
       panelClassName="expense-sheet sheet-sync-panel"
+      onClose={close}
     >
       <div className="expense-sheet-shell">
-        <div className="expense-drawer-handle" aria-hidden="true" />
         <div className="expense-sheet-header">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">

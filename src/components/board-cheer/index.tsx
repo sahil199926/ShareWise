@@ -225,7 +225,9 @@ const BoardCheer = ({ board }: BoardCheerProps) => {
               {item.emoji}
             </span>
             {item.label ? (
-              <span className={`text-xs font-semibold sm:text-sm ${WORD[board]}`}>
+              <span
+                className={`text-xs font-semibold sm:text-sm ${WORD[board]}`}
+              >
                 {item.label}
               </span>
             ) : null}

@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
+import { getFirebaseAccessToken } from '../lib/firebase'
 import { getDebt } from './debts.service'
-import type { User } from '../types/auth'
 import type {
   SheetAlias,
   SheetImportReceipt,
@@ -10,9 +10,14 @@ import type {
 } from '../types/sheet-sync'
 
 const requestSheetApi = async <T>(payload: Record<string, unknown>) => {
+  const accessToken = await getFirebaseAccessToken()
+  if (!accessToken) throw new Error('Sign in before syncing a sheet.')
   const response = await fetch('/api/sheet-sync', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
     body: JSON.stringify(payload),
   })
   const result = (await response.json().catch(() => ({}))) as T & {
@@ -26,22 +31,22 @@ const requestSheetApi = async <T>(payload: Record<string, unknown>) => {
 }
 
 export const listExpenseSheets = (
-  requesterEmail: string,
+  groupId: string,
   page: number,
   search: string,
 ) =>
   requestSheetApi<SheetListResult>({
     action: 'listSheets',
-    requesterEmail,
+    groupId,
     page,
     pageSize: 5,
     search,
   })
 
-export const previewExpenseSheet = (requesterEmail: string, sheetId: string) =>
+export const previewExpenseSheet = (groupId: string, sheetId: string) =>
   requestSheetApi<SheetSyncPreview>({
     action: 'previewSheet',
-    requesterEmail,
+    groupId,
     sheetId,
   })
 
@@ -57,44 +62,50 @@ const databaseError = (message: string | undefined) => {
 }
 
 export const listSheetAliases = async (
-  requesterEmail: string,
+  groupId: string,
   spreadsheetId: string,
 ) => {
-  const { data, error } = await supabase.rpc('list_sheet_person_aliases', {
-    p_requester_email: requesterEmail,
-    p_spreadsheet_id: spreadsheetId,
-  })
+  const { data, error } = await supabase.rpc(
+    'list_group_sheet_person_aliases',
+    {
+      p_group_id: groupId,
+      p_spreadsheet_id: spreadsheetId,
+    },
+  )
   if (error) throw new Error(databaseError(error.message))
   return (data ?? []) as SheetAlias[]
 }
 
-export const listSheetImports = async (requesterEmail: string) => {
-  const { data, error } = await supabase.rpc('list_sheet_sync_imports', {
-    p_requester_email: requesterEmail,
+export const listSheetImports = async (groupId: string) => {
+  const { data, error } = await supabase.rpc('list_group_sheet_sync_imports', {
+    p_group_id: groupId,
   })
   if (error) throw new Error(databaseError(error.message))
   return (data ?? []) as SheetImportReceipt[]
 }
 
 export const createSheetImportDebts = async (
-  admin: User,
+  groupId: string,
   input: SheetSyncSubmission,
 ) => {
-  const { data, error } = await supabase.rpc('create_sheet_import_debts', {
-    p_requester_email: admin.email,
-    p_spreadsheet_id: input.spreadsheetId,
-    p_sheet_id: input.sheetId,
-    p_sheet_title: input.sheetTitle,
-    p_fingerprint: input.fingerprint,
-    p_note: input.note,
-    p_expense_date: input.expenseDate,
-    p_debts: input.debts.map((debt) => ({
-      debtorId: debt.debtorId,
-      creditorId: debt.creditorId,
-      amount: debt.amount,
-    })),
-    p_aliases: input.aliases,
-  })
+  const { data, error } = await supabase.rpc(
+    'create_group_sheet_import_debts',
+    {
+      p_group_id: groupId,
+      p_spreadsheet_id: input.spreadsheetId,
+      p_sheet_id: input.sheetId,
+      p_sheet_title: input.sheetTitle,
+      p_fingerprint: input.fingerprint,
+      p_note: input.note,
+      p_expense_date: input.expenseDate,
+      p_debts: input.debts.map((debt) => ({
+        debtorId: debt.debtorId,
+        creditorId: debt.creditorId,
+        amount: debt.amount,
+      })),
+      p_aliases: input.aliases,
+    },
+  )
 
   if (error || !Array.isArray(data)) {
     throw new Error(databaseError(error?.message))
@@ -102,7 +113,7 @@ export const createSheetImportDebts = async (
 
   return Promise.all(
     (data as string[]).map(async (id) => {
-      const debt = await getDebt(id)
+      const debt = await getDebt(groupId, id)
       if (!debt) throw new Error('A synced debt could not be loaded.')
       return debt
     }),

@@ -21,17 +21,20 @@ const Layout = () => {
     if (location.key === shown.key) return
 
     if (location.pathname === shown.pathname || prefersReducedMotion()) {
-      setShown(location)
-      return
+      const timer = window.setTimeout(() => setShown(location), 0)
+      return () => window.clearTimeout(timer)
     }
 
-    setBlindsPhase('cover')
+    const coverTimer = window.setTimeout(() => setBlindsPhase('cover'), 0)
     const timer = window.setTimeout(() => {
       setShown(location)
       setBlindsPhase('reveal')
     }, BLINDS_COVER_MS)
 
-    return () => window.clearTimeout(timer)
+    return () => {
+      window.clearTimeout(coverTimer)
+      window.clearTimeout(timer)
+    }
   }, [location, shown.key, shown.pathname])
 
   return (

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 type AvatarProps = {
   name: string
@@ -17,20 +17,16 @@ const getInitials = (name: string) => {
 }
 
 const Avatar = ({ name, avatarUrl, className = '' }: AvatarProps) => {
-  const [photoFailed, setPhotoFailed] = useState(false)
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
 
-  useEffect(() => {
-    setPhotoFailed(false)
-  }, [avatarUrl])
-
-  if (avatarUrl && !photoFailed) {
+  if (avatarUrl && failedUrl !== avatarUrl) {
     return (
       <img
         src={avatarUrl}
         alt=""
         referrerPolicy="no-referrer"
         className={`avatar-photo ${className}`}
-        onError={() => setPhotoFailed(true)}
+        onError={() => setFailedUrl(avatarUrl)}
       />
     )
   }
