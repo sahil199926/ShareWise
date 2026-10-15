@@ -341,8 +341,8 @@ const SheetSyncModal = ({
                 <div>
                   <h3 className="expense-section-title">Match people</h3>
                   <p className="expense-helper">
-                    Confirm who each sheet column belongs to. Saved matches are
-                    reused next time.
+                    Names and emails are auto-matched when the result is unique.
+                    Confirm each match before continuing.
                   </p>
                 </div>
                 {unmatched.length ? (

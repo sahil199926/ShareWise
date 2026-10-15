@@ -15,6 +15,88 @@ export const normalizeSheetPerson = (value: string) =>
     .trim()
     .replace(/\s+/g, ' ')
 
+const normalizeEmail = (value: string) => value.trim().toLowerCase()
+
+const EMAIL_PATTERN =
+  /[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+/i
+
+const extractEmail = (value: string) =>
+  normalizeEmail(value.match(EMAIL_PATTERN)?.[0] ?? '')
+
+const escapeRegExp = (value: string) =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const uniqueUserId = (users: MasterUserOption[]) => {
+  const ids = [...new Set(users.flatMap((user) => (user.id ? [user.id] : [])))]
+  return ids.length === 1 ? ids[0] : undefined
+}
+
+const nameRegexFor = (value: string) => {
+  const normalized = normalizeSheetPerson(value)
+  if (!normalized || normalized.includes('@')) return null
+
+  const tokens = normalized.split(' ').filter(Boolean)
+  const compactLength = tokens.join('').length
+  if (!tokens.length || compactLength < 3 || !/[a-z]/.test(normalized)) {
+    return null
+  }
+
+  return new RegExp(
+    `(?:^|\\s)${tokens
+      .map((token) => `${escapeRegExp(token)}[a-z0-9]*`)
+      .join('\\s+')}(?:\\s|$)`,
+    'i',
+  )
+}
+
+const emailRegexFor = (value: string) => {
+  const normalized = normalizeSheetPerson(value)
+  if (!normalized || normalized.includes('@')) return null
+
+  const compact = normalized.replace(/[^a-z0-9]/g, '')
+  if (compact.length < 4 || !/[a-z]/.test(compact)) return null
+
+  return new RegExp(escapeRegExp(compact), 'i')
+}
+
+export const findSheetUserMatch = (
+  sheetPerson: string,
+  users: MasterUserOption[],
+) => {
+  const key = normalizeSheetPerson(sheetPerson)
+
+  const exactName = uniqueUserId(
+    users.filter((user) => normalizeSheetPerson(user.name) === key),
+  )
+  if (exactName) return exactName
+
+  const sheetEmail = extractEmail(sheetPerson)
+  if (sheetEmail) {
+    const exactEmail = uniqueUserId(
+      users.filter((user) => normalizeEmail(user.email) === sheetEmail),
+    )
+    if (exactEmail) return exactEmail
+  }
+
+  const nameRegex = nameRegexFor(sheetPerson)
+  if (nameRegex) {
+    const nameMatch = uniqueUserId(
+      users.filter((user) => nameRegex.test(normalizeSheetPerson(user.name))),
+    )
+    if (nameMatch) return nameMatch
+  }
+
+  const emailRegex = emailRegexFor(sheetPerson)
+  if (!emailRegex) return undefined
+
+  return uniqueUserId(
+    users.filter((user) => {
+      const localPart = normalizeEmail(user.email).split('@')[0] ?? ''
+      return emailRegex.test(localPart.replace(/[^a-z0-9]/g, ''))
+    }),
+  )
+}
+
 export const initialSheetMappings = (
   people: SheetPersonBalance[],
   users: MasterUserOption[],
@@ -24,13 +106,6 @@ export const initialSheetMappings = (
   const aliasMap = new Map(
     aliases.map((alias) => [normalizeSheetPerson(alias.alias), alias.userId]),
   )
-  const usersByName = new Map<string, MasterUserOption[]>()
-
-  users.forEach((user) => {
-    if (!user.id) return
-    const key = normalizeSheetPerson(user.name)
-    usersByName.set(key, [...(usersByName.get(key) ?? []), user])
-  })
 
   people.forEach((person) => {
     const key = normalizeSheetPerson(person.rawName)
@@ -40,10 +115,8 @@ export const initialSheetMappings = (
       return
     }
 
-    const exact = usersByName.get(key) ?? []
-    if (exact.length === 1 && exact[0].id) {
-      mappings[person.rawName] = exact[0].id
-    }
+    const matchedUserId = findSheetUserMatch(person.rawName, users)
+    if (matchedUserId) mappings[person.rawName] = matchedUserId
   })
 
   return mappings
