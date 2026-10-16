@@ -20,5 +20,10 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "server/notify.d.ts", "server/share-preview.d.ts"]
+  "include": [
+    "vite.config.ts",
+    "server/notify.d.ts",
+    "server/share-preview.d.ts",
+    "server/billing.d.ts"
+  ]
 }

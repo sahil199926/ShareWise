@@ -11,7 +11,7 @@ import Logo from '../logo'
 const Login = () => {
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { isAuthenticated, isBootstrapping, activeGroup } = useAuth()
+  const { isAuthenticated, isBootstrapping, activeGroup, user } = useAuth()
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const selectedPlan = searchParams.get('plan')
@@ -47,7 +47,11 @@ const Login = () => {
 
   if (isBootstrapping) return <LazyFallback />
   if (isAuthenticated) {
-    const destination = activeGroup ? requestedPath : '/onboarding'
+    const destination = activeGroup
+      ? requestedPath
+      : user?.planChoiceCompleted
+        ? '/onboarding'
+        : '/plans'
     sessionStorage.removeItem('karja_auth_return_path')
     return <Navigate to={destination} replace />
   }

@@ -1,22 +1,11 @@
 import { useState } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/use-auth'
 import { createGroup, type NewGroupMember } from '../../services/groups.service'
 import Logo from '../logo'
 import SubscriptionBanner from '../subscription-banner'
 
 const blankMember = (): NewGroupMember => ({ name: '', email: '' })
-
-const pendingSubscription = () => {
-  try {
-    const value = JSON.parse(
-      sessionStorage.getItem('karja_pending_subscription') ?? 'null',
-    ) as { plan?: string; billing?: string } | null
-    return value?.plan && value.billing ? value : null
-  } catch {
-    return null
-  }
-}
 
 const GroupOnboarding = () => {
   const {
@@ -36,7 +25,6 @@ const GroupOnboarding = () => {
   const [members, setMembers] = useState<NewGroupMember[]>([blankMember()])
   const [error, setError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
-  const selectedSubscription = pendingSubscription()
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (activeGroup && !isCreatingAnother)
@@ -111,18 +99,6 @@ const GroupOnboarding = () => {
             create {createGroupLimit} groups and join {joinedGroupLimit} others.
             Invitations activate when the same verified Google email signs in.
           </p>
-          {selectedSubscription ? (
-            <div className="mt-5 rounded-2xl border border-emerald/20 bg-emerald/8 px-4 py-3 text-sm text-medium">
-              <strong className="capitalize text-high">
-                {selectedSubscription.plan} · {selectedSubscription.billing}
-              </strong>
-              <p className="mt-1 text-xs leading-5 text-low">
-                This selection is saved for the upcoming Razorpay checkout. A
-                paid plan is attached to your user account only after payment is
-                confirmed.
-              </p>
-            </div>
-          ) : null}
           <form className="mt-6 space-y-5" onSubmit={submit}>
             {error ? <p className="alert-error">{error}</p> : null}
             <div>
@@ -231,7 +207,11 @@ const GroupOnboarding = () => {
             {hasReachedCreateLimit ? (
               <p className="alert-error">
                 Your {planLabel} plan can create up to {createGroupLimit}{' '}
-                groups. Upgrade your plan or delete one first.
+                groups.{' '}
+                <Link to="/profile#plans" className="link-accent">
+                  Upgrade your plan
+                </Link>{' '}
+                or delete one first.
               </p>
             ) : null}
           </form>

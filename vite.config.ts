@@ -4,10 +4,66 @@ import tailwindcss from '@tailwindcss/vite'
 import { handleNotifyRequest } from './server/notify.js'
 import { handleSheetSyncRequest } from './server/sheet-sync.js'
 import { buildSharePreview, isShareCrawler } from './server/share-preview.js'
+import {
+  chooseFreeSubscription,
+  confirmSubscription,
+  startSubscription,
+  subscriptionWebhook,
+} from './server/billing.js'
 
 const mailApi = (): Plugin => ({
   name: 'karja-mail-api',
   configureServer(server) {
+    for (const [path, action] of [
+      ['/api/billing-start', startSubscription],
+      ['/api/billing-confirm', confirmSubscription],
+      ['/api/billing-free', chooseFreeSubscription],
+    ] as const) {
+      server.middlewares.use(path, (req, res, next) => {
+        if (req.method !== 'POST') return next()
+        const chunks: Buffer[] = []
+        req.on('data', (chunk) =>
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)),
+        )
+        req.on('end', () => {
+          const env = loadEnv(server.config.mode, process.cwd(), '')
+          let body: unknown
+          try {
+            body = JSON.parse(Buffer.concat(chunks).toString('utf8'))
+          } catch {
+            res.statusCode = 400
+            res.end(JSON.stringify({ error: 'Invalid request' }))
+            return
+          }
+          void action({ headers: req.headers, body }, env).then((result) => {
+            res.statusCode = result.status
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify(result.body))
+          })
+        })
+      })
+    }
+
+    server.middlewares.use('/api/billing-webhook', (req, res, next) => {
+      if (req.method !== 'POST') return next()
+      const chunks: Buffer[] = []
+      req.on('data', (chunk) =>
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)),
+      )
+      req.on('end', () => {
+        const env = loadEnv(server.config.mode, process.cwd(), '')
+        void subscriptionWebhook(
+          Buffer.concat(chunks),
+          req.headers['x-razorpay-signature'],
+          env,
+        ).then((result) => {
+          res.statusCode = result.status
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify(result.body))
+        })
+      })
+    })
+
     server.middlewares.use('/api/notify-debt', (req, res, next) => {
       if (req.method !== 'POST') {
         next()

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import AppHeader from '../app-header'
 import Avatar from '../avatar'
@@ -8,6 +8,7 @@ import { updateProfile } from '../../services/profile.service'
 import type { User } from '../../types/auth'
 import type { ProfileUpdateInput } from '../../types/profile'
 import { subscriptionHistoryLabel } from '../../constants/subscription-plans'
+import PlanChooser from '../plan-chooser'
 
 const formatReadOnly = (value: string | number | null | undefined) => {
   if (value === null || value === undefined || value === '') {
@@ -98,6 +99,14 @@ const Profile = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  useEffect(() => {
+    if (window.location.hash === '#plans') {
+      window.requestAnimationFrame(() =>
+        document.getElementById('plans')?.scrollIntoView(),
+      )
+    }
+  }, [])
+
   const handleLogout = () => {
     logout()
     navigate('/login', { replace: true })
@@ -173,6 +182,9 @@ const Profile = () => {
   const joinedGroupCount = groups.filter(
     (group) => group.role !== 'owner',
   ).length
+  const canChoosePlan =
+    groups.length === 0 ||
+    groups.some((group) => group.role === 'owner' || group.role === 'admin')
   const debtUsagePercent = Math.min(
     100,
     subscription.monthlyDebtLimit > 0
@@ -534,6 +546,27 @@ const Profile = () => {
               Create another group
             </Link>
           ) : null}
+        </section>
+
+        <section id="plans" className="card mt-6 scroll-mt-8 p-6 sm:p-8">
+          {canChoosePlan ? (
+            <>
+              <p className="mb-5 text-sm text-low">
+                This plan belongs to your account. A group uses its creator’s
+                plan for shared limits, so upgrading your account changes the
+                capacity of groups you created.
+              </p>
+              <PlanChooser />
+            </>
+          ) : (
+            <div>
+              <h2 className="text-xl font-semibold text-high">Plan upgrades</h2>
+              <p className="mt-2 text-sm text-low">
+                A group admin chooses and pays for the plan that controls their
+                group. Ask your admin if you need more capacity.
+              </p>
+            </div>
+          )}
         </section>
 
         <p className="mt-4 text-center text-xs text-low">

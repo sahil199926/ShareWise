@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/use-auth'
 import Logo from '../logo'
 
@@ -30,15 +30,9 @@ const SubscriptionBlocked = () => {
           completed.
         </p>
         <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <a
-            className="btn-primary"
-            href={
-              import.meta.env.VITE_PRICING_URL ||
-              'mailto:contact@eonlint.com?subject=Karja%20subscription%20renewal'
-            }
-          >
+          <Link className="btn-primary" to="/profile#plans">
             Renew subscription
-          </a>
+          </Link>
           <button
             type="button"
             className="btn-ghost"
@@ -49,9 +43,6 @@ const SubscriptionBlocked = () => {
             Log out
           </button>
         </div>
-        <p className="mt-5 text-xs text-low">
-          Online payment will be enabled with the Razorpay onboarding flow.
-        </p>
       </main>
     </div>
   )

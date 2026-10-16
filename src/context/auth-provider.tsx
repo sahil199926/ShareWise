@@ -109,6 +109,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       age: nextUser.age,
       score: nextUser.score,
       avatarUrl: nextUser.avatarUrl,
+      planChoiceCompleted: nextUser.planChoiceCompleted,
       subscription: nextUser.subscription,
     })
   }, [])

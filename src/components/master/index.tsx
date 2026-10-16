@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import AppHeader from '../app-header'
 import ConfirmModal from '../confirm-modal'
 import Pagination from '../pagination'
@@ -41,6 +41,7 @@ const Master = () => {
   const [groupAction, setGroupAction] = useState<'delete' | 'leave' | null>(
     null,
   )
+  const [showCapacity, setShowCapacity] = useState(false)
 
   const canManage =
     activeGroup?.role === 'owner' || activeGroup?.role === 'admin'
@@ -80,6 +81,10 @@ const Master = () => {
   }
 
   const openCreateModal = () => {
+    if (activeGroup && pagination.total >= activeGroup.memberLimit) {
+      setShowCapacity(true)
+      return
+    }
     setModalMode('create')
     setEditingUser(undefined)
     setIsModalOpen(true)
@@ -174,6 +179,24 @@ const Master = () => {
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {error ? <div className="alert-error mb-6">{error}</div> : null}
+        {canManage &&
+        (showCapacity ||
+          (activeGroup && pagination.total >= activeGroup.memberLimit)) ? (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+            This group has reached its limit of {activeGroup?.memberLimit}{' '}
+            people.{' '}
+            {activeGroup?.subscriptionOwner.id === user?.id ? (
+              <Link className="link-accent" to="/profile#plans">
+                Compare plans and upgrade
+              </Link>
+            ) : (
+              <>
+                Ask {activeGroup?.subscriptionOwner.name} to upgrade the plan
+                controlling this group.
+              </>
+            )}
+          </div>
+        ) : null}
 
         {activeGroup ? (
           <section className="card mb-6 p-5 sm:p-6">

@@ -14,6 +14,10 @@ export const getMyContext = async () => {
     throw new Error(error?.message || 'Could not load your groups')
   }
   const context = data as AuthContextPayload
+  const { data: planChoice, error: planChoiceError } = context.groups.length
+    ? { data: true, error: null }
+    : await supabase.rpc('get_my_plan_choice_status')
+  if (planChoiceError) throw new Error(planChoiceError.message)
   const userSubscription = {
     ...FREE_SUBSCRIPTION,
     ...(context.user.subscription ?? {}),
@@ -22,6 +26,7 @@ export const getMyContext = async () => {
     ...context,
     user: {
       ...context.user,
+      planChoiceCompleted: Boolean(planChoice),
       subscription: userSubscription,
     },
     groups: context.groups.map((group) => ({

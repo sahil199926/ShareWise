@@ -14,6 +14,7 @@ export const LeaderboardPersonPage = lazy(
   () => import('../components/leaderboard-person'),
 )
 export const ProfilePage = lazy(() => import('../components/profile'))
+export const PlansPage = lazy(() => import('../components/plans-page'))
 export const MasterPage = lazy(() => import('../components/master'))
 export const GroupOnboardingPage = lazy(
   () => import('../components/group-onboarding'),

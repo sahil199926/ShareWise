@@ -31,6 +31,7 @@ export type User = {
   age: number | null
   score: number | null
   avatarUrl?: string | null
+  planChoiceCompleted: boolean
   subscription: SubscriptionEntitlements
 }
 

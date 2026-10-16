@@ -18,6 +18,7 @@ const toUser = (value: unknown): Omit<User, 'subscription'> => {
     age: user.age ?? null,
     score: user.score ?? null,
     avatarUrl: user.avatarUrl ?? null,
+    planChoiceCompleted: user.planChoiceCompleted ?? false,
   }
 }
 
@@ -32,6 +33,7 @@ export const getProfile = async (currentUser: User) => {
     ...toUser(data),
     type: currentUser.type,
     role: currentUser.role,
+    planChoiceCompleted: currentUser.planChoiceCompleted,
     subscription: currentUser.subscription,
   }
 }
@@ -53,6 +55,7 @@ export const updateProfile = async (
     ...toUser(data),
     type: currentUser.type,
     role: currentUser.role,
+    planChoiceCompleted: currentUser.planChoiceCompleted,
     subscription: currentUser.subscription,
   }
 }

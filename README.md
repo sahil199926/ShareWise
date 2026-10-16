@@ -102,21 +102,49 @@ cannot gain access by supplying another group's UUID. Financial writes are
 available only through guarded database functions; direct debt inserts,
 updates, and deletes are revoked.
 
-Groups allow 12 members (including the owner) and three group creations per
-account per rolling 24 hours. Subscription limits are enforced in the database:
-Free and Basic allow 2 created groups, 4 joined groups, 2 months of history and
-300 new debt records per month; Advanced allows 10 groups of each kind, 2 years
-of history and 1,000 debts per month; Pro allows 40 groups of each kind, 10
-years of history and 10,000 debts per month. Billing must update
-`app_users.subscription_plan`, `subscription_status`, and
-`subscription_current_period_end` through a trusted server or webhook—never
-from the browser.
+Groups allow three creations per account per rolling 24 hours. Plan limits come
+from `subscription_plans` and are enforced in the database. The launched Free
+plan permits 1 created group, 2 joined groups, 3 people per group, 1 month of
+history, and 30 new debt records per month. The other plan values are read from
+the same table. Billing writes `user_subscriptions` through a trusted server;
+the browser cannot activate paid access.
+
+## Razorpay subscriptions
+
+The app shows all four active plans before a new group owner creates a group.
+Group admins can also change plans from Profile. Paid plans use Razorpay
+Subscriptions with automatic monthly or yearly renewal. A plan change charges
+the full new price immediately; after the first charge is confirmed, the old
+Razorpay subscription is cancelled and the new plan becomes active. The old
+period is not credited.
+
+1. Apply `supabase/migrations/20261016150000_razorpay_subscriptions.sql` after
+   the preceding subscription migrations.
+2. Create six Razorpay plans: Basic, Advanced, and Pro, each monthly and yearly.
+   Their INR amounts must match `subscription_plans`. Set the six
+   `RAZORPAY_PLAN_*` IDs in the server environment, along with
+   `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `FIREBASE_PROJECT_ID`,
+   `SUPABASE_URL`, and `SUPABASE_SECRET_KEY`. See `.env.example`.
+3. Set `RAZORPAY_WEBHOOK_SECRET` and configure Razorpay to POST to
+   `https://YOUR_APP_DOMAIN/api/billing-webhook`. Subscribe to
+   `subscription.activated`, `subscription.charged`, `subscription.pending`,
+   `subscription.halted`, `subscription.paused`, `subscription.resumed`,
+   `subscription.updated`, `subscription.authenticated`,
+   `subscription.cancelled`, and `subscription.completed`.
+   The endpoint verifies the webhook signature against the raw request body.
+4. Test first purchase, automatic renewal, immediate upgrade, cancelled
+   checkout, failed charge, and webhook retries with Razorpay Test Mode before
+   switching to Live Mode keys and plan IDs.
+
+Razorpay requires a finite `total_count`; this integration creates 120 monthly
+or 10 yearly cycles (10 years). Subscription completion after that time needs a
+new checkout. Keep the Supabase secret key and Razorpay key secret server-only.
 
 ## Daily open-payment reminders
 
-Karja Tracker includes a Supabase Edge Function that emails one daily digest to
-each person who has at least one debt with `status = 'open'`. It uses Resend and
-runs at 9:00 AM India time through Supabase Cron.
+Karja Tracker includes a Supabase Edge Function that emails up to two daily
+digests to each person who has at least one debt with `status = 'open'`. It uses
+Resend and runs at 9:00 AM and 6:00 PM India time through Supabase Cron.
 
 1. Apply the schema and tenant migration described above.
 2. Link the local project and deploy the function:
@@ -143,8 +171,8 @@ runs at 9:00 AM India time through Supabase Cron.
    secret key placeholders, then run that file once in the SQL editor. Use a
    named secret key dedicated to this cron job when possible.
 
-   The included schedule is `30 3 * * *`, which is 9:00 AM in India. Supabase
-   Cron evaluates this expression in UTC.
+   The included schedule is `30 3,12 * * *`, which is 9:00 AM and 6:00 PM in
+   India. Supabase Cron evaluates this expression in UTC.
 
 The function records each attempt in `daily_reminder_deliveries` and uses a
 Resend idempotency key, so retries do not send the same user's digest twice on

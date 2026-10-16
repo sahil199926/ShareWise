@@ -12,6 +12,7 @@ import {
   LeaderboardPersonPage,
   MasterPage,
   ProfilePage,
+  PlansPage,
   PublicDebtsPage,
 } from './lazy-pages'
 
@@ -97,9 +98,19 @@ export const routes: RouteObject[] = [
     ),
   },
   {
+    path: '/plans',
+    element: (
+      <ProtectedRoute allowWithoutGroup allowBillingWhenBlocked>
+        <LazyRoute>
+          <PlansPage />
+        </LazyRoute>
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/profile',
     element: (
-      <ProtectedRoute>
+      <ProtectedRoute allowWithoutGroup allowBillingWhenBlocked>
         <LazyRoute>
           <ProfilePage />
         </LazyRoute>

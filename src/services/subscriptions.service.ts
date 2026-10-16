@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase'
+import { getFirebaseAccessToken } from '../lib/firebase'
 import type {
   SubscriptionPlanDefinition,
   SubscriptionRecord,
@@ -19,3 +20,48 @@ export const listMySubscriptions = async () => {
   }
   return data as SubscriptionRecord[]
 }
+
+export const chooseFreePlan = async () => {
+  await billingRequest('/api/billing-free', {})
+}
+
+const billingRequest = async (path: string, body: object) => {
+  const token = await getFirebaseAccessToken()
+  if (!token) throw new Error('Sign in to continue')
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+  const result = await response.json().catch(() => ({}))
+  if (!response.ok)
+    throw new Error(result.error || 'Payment could not be started')
+  return result
+}
+
+export const startSubscription = (
+  planId: string,
+  billingInterval: 'monthly' | 'yearly',
+) =>
+  billingRequest('/api/billing-start', { planId, billingInterval }) as Promise<{
+    keyId: string
+    subscriptionId: string
+  }>
+
+export const confirmSubscription = (
+  subscriptionId: string,
+  paymentId: string,
+  signature: string,
+) =>
+  billingRequest('/api/billing-confirm', {
+    subscriptionId,
+    paymentId,
+    signature,
+  }) as Promise<{
+    active?: boolean
+    pending?: boolean
+    message?: string
+  }>

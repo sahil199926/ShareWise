@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import AppHeader from '../app-header'
 import ConfirmModal from '../confirm-modal'
@@ -394,7 +394,17 @@ const DebtOverview = () => {
             <strong className="font-semibold">New debts are paused.</strong>{' '}
             {activeGroup?.freezeReason ||
               'The subscription controlling this group has reached a limit.'}{' '}
-            Existing debts and settlement history remain available.
+            Existing debts and settlement history remain available.{' '}
+            {activeGroup?.subscriptionOwner.id === user?.id ? (
+              <Link to="/profile#plans" className="link-accent">
+                Compare plans and upgrade
+              </Link>
+            ) : (
+              <>
+                Ask {activeGroup?.subscriptionOwner.name} to upgrade the group’s
+                plan.
+              </>
+            )}
           </div>
         ) : null}
         {error ? <div className="alert-error mb-6">{error}</div> : null}

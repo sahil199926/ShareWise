@@ -41,7 +41,7 @@ const AppHeader = ({
     (group) => group.role === 'owner',
   ).length
   const canCreateGroup =
-    createdGroupCount < (user?.subscription.maxCreatedGroups ?? 2)
+    createdGroupCount < (user?.subscription.maxCreatedGroups ?? 1)
 
   return (
     <header className="border-b border-white/50 bg-white/45 backdrop-blur-xl">
@@ -60,6 +60,10 @@ const AppHeader = ({
                     navigate('/onboarding?create=1')
                     return
                   }
+                  if (event.target.value === '__upgrade__') {
+                    navigate('/profile#plans')
+                    return
+                  }
                   selectGroup(event.target.value)
                 }}
               >
@@ -70,6 +74,10 @@ const AppHeader = ({
                 ))}
                 {canCreateGroup ? (
                   <option value="__create__">＋ Create group</option>
+                ) : user?.role === 'owner' || user?.role === 'admin' ? (
+                  <option value="__upgrade__">
+                    Upgrade to create another group
+                  </option>
                 ) : null}
               </select>
             ) : null}
