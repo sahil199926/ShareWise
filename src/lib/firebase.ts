@@ -5,6 +5,7 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   setPersistence,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
   type Auth,
@@ -51,6 +52,15 @@ export const signInWithGooglePopup = async () => {
   provider.setCustomParameters({ prompt: 'select_account' })
 
   return signInWithPopup(firebaseAuth, provider)
+}
+
+export const signInWithReviewerPassword = async (
+  email: string,
+  password: string,
+) => {
+  const firebaseAuth = getFirebaseAuth()
+  await persistenceReady
+  return signInWithEmailAndPassword(firebaseAuth, email, password)
 }
 
 export const getFirebaseAccessToken = async () => {

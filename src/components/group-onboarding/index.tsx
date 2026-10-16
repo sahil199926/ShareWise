@@ -97,7 +97,7 @@ const GroupOnboarding = () => {
           <p className="mt-2 text-sm text-low">
             A group supports {memberLimit} people. Your {planLabel} plan can
             create {createGroupLimit} groups and join {joinedGroupLimit} others.
-            Invitations activate when the same verified Google email signs in.
+            Invitations activate when the same verified email signs in.
           </p>
           <form className="mt-6 space-y-5" onSubmit={submit}>
             {error ? <p className="alert-error">{error}</p> : null}
@@ -151,7 +151,7 @@ const GroupOnboarding = () => {
                       onChange={(event) =>
                         updateMember(index, 'email', event.target.value)
                       }
-                      placeholder="Google account email"
+                      placeholder="Email address"
                       aria-label={`Member ${index + 1} email`}
                     />
                     <button

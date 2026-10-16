@@ -2,11 +2,41 @@ import assert from 'node:assert/strict'
 import { createHmac } from 'node:crypto'
 import test from 'node:test'
 import {
+  isApprovedFirebaseSignIn,
   paidPeriod,
   startSubscription,
   verifyCheckoutSignature,
   verifyWebhookSignature,
 } from './billing.js'
+
+test('only the designated reviewer password account gets non-Google billing access', () => {
+  const google = {
+    email: 'owner@example.com',
+    email_verified: true,
+    firebase: { sign_in_provider: 'google.com' },
+  }
+  assert.equal(isApprovedFirebaseSignIn(google), true)
+  assert.equal(
+    isApprovedFirebaseSignIn({
+      ...google,
+      email: 'test@gmail.com',
+      email_verified: false,
+      firebase: { sign_in_provider: 'password' },
+    }),
+    true,
+  )
+  assert.equal(
+    isApprovedFirebaseSignIn({ ...google, email_verified: false }),
+    false,
+  )
+  assert.equal(
+    isApprovedFirebaseSignIn({
+      ...google,
+      firebase: { sign_in_provider: 'password' },
+    }),
+    false,
+  )
+})
 
 test('paid checkout stays closed until rollout is explicitly enabled', async () => {
   const result = await startSubscription({}, {})

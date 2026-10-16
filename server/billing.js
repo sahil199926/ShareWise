@@ -92,6 +92,12 @@ const firebaseCerts = async () => {
   return firebaseCertificates
 }
 
+export const isApprovedFirebaseSignIn = (claims) =>
+  ((claims.firebase?.sign_in_provider === 'google.com' &&
+    claims.email_verified === true) ||
+    (claims.firebase?.sign_in_provider === 'password' &&
+      String(claims.email).toLowerCase() === 'test@gmail.com'))
+
 const signedInUser = async (request, db, env) => {
   const token = request.headers.authorization?.match(/^Bearer (.+)$/i)?.[1]
   if (!token || !env.FIREBASE_PROJECT_ID) throw new Error('Sign in to continue')
@@ -114,8 +120,7 @@ const signedInUser = async (request, db, env) => {
     claims.iat > now ||
     !Number.isInteger(claims.auth_time) ||
     claims.auth_time > now ||
-    claims.email_verified !== true ||
-    claims.firebase?.sign_in_provider !== 'google.com'
+    !isApprovedFirebaseSignIn(claims)
   )
     throw new Error('Sign in to continue')
   const cert = (await firebaseCerts())[header.kid]

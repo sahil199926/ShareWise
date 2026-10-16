@@ -3,7 +3,10 @@ import { Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { APP_NAME } from '../../constants/brand'
 import { useAuth } from '../../hooks/use-auth'
 import { firebaseReady } from '../../lib/firebase'
-import { signInWithGoogle } from '../../services/auth.service'
+import {
+  signInWithGoogle,
+  signInWithReviewerPassword,
+} from '../../services/auth.service'
 import KarjaArt from '../karja-art'
 import LazyFallback from '../lazy-fallback'
 import Logo from '../logo'
@@ -11,6 +14,8 @@ import Logo from '../logo'
 const Login = () => {
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [reviewerEmail, setReviewerEmail] = useState('')
+  const [reviewerPassword, setReviewerPassword] = useState('')
   const { isAuthenticated, isBootstrapping, activeGroup, user } = useAuth()
   const location = useLocation()
   const [searchParams] = useSearchParams()
@@ -41,6 +46,27 @@ const Login = () => {
       await signInWithGoogle(requestedPath)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Google sign-in failed')
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleReviewerSignIn = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setError('')
+    setIsSubmitting(true)
+    try {
+      await signInWithReviewerPassword(
+        reviewerEmail,
+        reviewerPassword,
+        requestedPath,
+      )
+    } catch (err) {
+      setError(
+        err instanceof Error &&
+          err.message === 'This sign-in is for the reviewer account only.'
+          ? err.message
+          : 'Could not sign in. Check the reviewer credentials and try again.',
+      )
       setIsSubmitting(false)
     }
   }
@@ -84,15 +110,67 @@ const Login = () => {
           <div className="mt-8 space-y-4">
             {error ? <p className="alert-error">{error}</p> : null}
             {firebaseReady ? (
-              <button
-                type="button"
-                className="btn-secondary flex min-h-11 w-full items-center justify-center gap-3 bg-white/80 disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => void handleGoogleSignIn()}
-                disabled={isSubmitting}
-              >
-                <GoogleMark />
-                {isSubmitting ? 'Signing in…' : 'Continue with Google'}
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="btn-secondary flex min-h-11 w-full items-center justify-center gap-3 bg-white/80 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => void handleGoogleSignIn()}
+                  disabled={isSubmitting}
+                >
+                  <GoogleMark />
+                  {isSubmitting ? 'Signing in…' : 'Continue with Google'}
+                </button>
+                <div className="flex items-center gap-3 text-xs text-low">
+                  <span className="h-px flex-1 bg-black/10" />
+                  <span>Reviewer test access</span>
+                  <span className="h-px flex-1 bg-black/10" />
+                </div>
+                <form
+                  className="space-y-3"
+                  onSubmit={(event) => void handleReviewerSignIn(event)}
+                >
+                  <div>
+                    <label className="field-label" htmlFor="reviewer-email">
+                      Email
+                    </label>
+                    <input
+                      id="reviewer-email"
+                      className="input-field"
+                      type="email"
+                      autoComplete="username"
+                      value={reviewerEmail}
+                      onChange={(event) => setReviewerEmail(event.target.value)}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="field-label" htmlFor="reviewer-password">
+                      Password
+                    </label>
+                    <input
+                      id="reviewer-password"
+                      className="input-field"
+                      type="password"
+                      autoComplete="current-password"
+                      value={reviewerPassword}
+                      onChange={(event) =>
+                        setReviewerPassword(event.target.value)
+                      }
+                      required
+                    />
+                  </div>
+                  <button
+                    className="btn-primary w-full"
+                    type="submit"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Signing in…' : 'Sign in to test account'}
+                  </button>
+                  <p className="text-center text-xs text-low">
+                    Test account uses the Free plan; no payment is needed.
+                  </p>
+                </form>
+              </>
             ) : (
               <p className="alert-error">
                 Add the Firebase web app keys to .env, then restart the app.
