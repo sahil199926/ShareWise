@@ -3,9 +3,16 @@ import { createHmac } from 'node:crypto'
 import test from 'node:test'
 import {
   paidPeriod,
+  startSubscription,
   verifyCheckoutSignature,
   verifyWebhookSignature,
 } from './billing.js'
+
+test('paid checkout stays closed until rollout is explicitly enabled', async () => {
+  const result = await startSubscription({}, {})
+  assert.equal(result.status, 503)
+  assert.equal(result.body.error, 'Paid subscriptions are not available yet')
+})
 
 test('verifies the Razorpay subscription checkout example and rejects substitution', () => {
   const secret = 'EnLs21M47BllR3X8PSFtjtbd'

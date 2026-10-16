@@ -237,6 +237,8 @@ const settleCheckout = async (db, env, checkout) => {
 }
 
 export const startSubscription = async (request, env = process.env) => {
+  if (env.RAZORPAY_BILLING_ENABLED !== 'true')
+    return fail(503, 'Paid subscriptions are not available yet')
   try {
     const db = database(env)
     const user = await signedInUser(request, db, env)

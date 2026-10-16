@@ -137,7 +137,11 @@ period is not credited.
    The endpoint verifies the webhook signature against the raw request body.
 4. Test first purchase, automatic renewal, immediate upgrade, cancelled
    checkout, failed charge, and webhook retries with Razorpay Test Mode before
-   switching to Live Mode keys and plan IDs.
+   switching to Live Mode keys and plan IDs. Set
+   `RAZORPAY_BILLING_ENABLED=true` only after the Live webhook is configured,
+   the website is approved by Razorpay, and the production endpoint has been
+   verified. Until then paid checkout returns 503; Free onboarding remains
+   available.
 
 Razorpay requires a finite `total_count`; this integration creates 120 monthly
 or 10 yearly cycles (10 years). Subscription completion after that time needs a
