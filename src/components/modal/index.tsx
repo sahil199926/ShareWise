@@ -13,6 +13,7 @@ type ModalProps = {
   panelClassName?: string
   overlayClassName?: string
   variant?: 'dialog' | 'responsive-sheet'
+  ariaLabel?: string
   onClose?: () => void
 }
 
@@ -34,6 +35,7 @@ const Modal = ({
   panelClassName = '',
   overlayClassName = '',
   variant = 'responsive-sheet',
+  ariaLabel,
   onClose,
 }: ModalProps) => {
   const reduceMotion = useReducedMotion()
@@ -72,6 +74,7 @@ const Modal = ({
           <motion.div
             role="dialog"
             aria-modal="true"
+            aria-label={ariaLabel}
             className={`modal-panel ${isSheet ? 'modal-panel-sheet' : ''} ${panelClassName}`.trim()}
             drag={isSheet ? 'y' : false}
             dragListener={false}

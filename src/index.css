@@ -344,11 +344,7 @@
       width: 2.75rem;
       height: 0.3rem;
       border-radius: 999px;
-      background: color-mix(
-        in srgb,
-        var(--kt-money-deep) 30%,
-        transparent
-      );
+      background: color-mix(in srgb, var(--kt-money-deep) 30%, transparent);
     }
   }
 
@@ -629,6 +625,55 @@
   .filter-chip-active {
     @apply rounded-full bg-brand px-3 py-1.5 text-sm font-semibold text-white shadow-sm;
   }
+
+  .plan-option-card {
+    position: relative;
+    transition:
+      transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.3s ease;
+  }
+
+  .plan-option-featured {
+    background:
+      radial-gradient(
+        circle at 100% 0%,
+        rgba(74, 222, 128, 0.16),
+        transparent 45%
+      ),
+      linear-gradient(145deg, #fff 35%, #f0fdf4 100%);
+    box-shadow: 0 18px 38px -25px rgba(21, 128, 61, 0.55);
+    animation: plan-featured-glow 4s ease-in-out infinite;
+  }
+
+  .plan-option-featured::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 1.25rem;
+    left: 1.25rem;
+    height: 3px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #16a34a, #bbf7d0, #16a34a);
+    background-size: 200% 100%;
+    animation: plan-featured-sheen 5s linear infinite;
+  }
+
+  .plan-option-featured:hover,
+  .plan-option-featured:focus-within {
+    transform: translateY(-4px);
+    box-shadow: 0 24px 44px -25px rgba(21, 128, 61, 0.65);
+  }
+
+  .plan-popular-badge {
+    color: #14532d;
+    background: linear-gradient(120deg, #dcfce7, #bbf7d0);
+    box-shadow: 0 4px 12px -6px rgba(21, 128, 61, 0.55);
+  }
+
+  .plan-featured-action {
+    background: linear-gradient(105deg, #15803d, #16a34a 55%, #22c55e);
+    box-shadow: 0 10px 22px -14px rgba(21, 128, 61, 0.9);
+  }
 }
 
 @keyframes btn-shine {
@@ -641,7 +686,33 @@
   }
 }
 
+@keyframes plan-featured-glow {
+  50% {
+    box-shadow: 0 22px 42px -24px rgba(21, 128, 61, 0.7);
+  }
+}
+
+@keyframes plan-featured-sheen {
+  to {
+    background-position: 200% 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .plan-option-card {
+    transition: none;
+  }
+
+  .plan-option-featured,
+  .plan-option-featured::before {
+    animation: none;
+  }
+
+  .plan-option-featured:hover,
+  .plan-option-featured:focus-within {
+    transform: none;
+  }
+
   .btn-primary,
   .btn-secondary,
   .btn-ghost,

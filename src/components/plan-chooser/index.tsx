@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { SubscriptionPlanDefinition } from '../../types/subscription'
 import {
   chooseFreePlan,
@@ -7,6 +8,7 @@ import {
   startSubscription,
 } from '../../services/subscriptions.service'
 import { useAuth } from '../../hooks/use-auth'
+import Modal from '../modal'
 
 type RazorpayResponse = {
   razorpay_payment_id: string
@@ -81,6 +83,54 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
   const [working, setWorking] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const freeTriggerRef = useRef<HTMLButtonElement>(null)
+  const compareRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!confirmFree) return
+    const previousFocus = document.activeElement as HTMLElement | null
+    const trigger = freeTriggerRef.current
+    const frame = window.requestAnimationFrame(() =>
+      compareRef.current?.focus(),
+    )
+    return () => {
+      window.cancelAnimationFrame(frame)
+      if (previousFocus?.isConnected) previousFocus.focus()
+      else trigger?.focus()
+    }
+  }, [confirmFree])
+
+  useEffect(() => {
+    if (!confirmFree) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !working) {
+        setConfirmFree(false)
+        setError('')
+      }
+      if (event.key === 'Tab') {
+        const dialog = document.querySelector(
+          '[role="dialog"][aria-label="Free has limited access"]',
+        )
+        const buttons = Array.from(
+          dialog?.querySelectorAll<HTMLButtonElement>(
+            'button:not([disabled])',
+          ) ?? [],
+        )
+        const first = buttons[0]
+        const last = buttons.at(-1)
+        if (!first || !last) return
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [confirmFree, working])
 
   useEffect(() => {
     let cancelled = false
@@ -114,6 +164,7 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
     setWorking(true)
     try {
       await chooseFreePlan()
+      setConfirmFree(false)
       await activate()
     } catch (reason) {
       setError(
@@ -205,7 +256,9 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
           ))}
         </div>
       </div>
-      {error ? <p className="alert-error mt-4">{error}</p> : null}
+      {error && !confirmFree ? (
+        <p className="alert-error mt-4">{error}</p>
+      ) : null}
       {notice ? (
         <div className="mt-4 rounded-2xl bg-emerald/10 p-4 text-sm text-emerald-deep">
           {notice}{' '}
@@ -220,6 +273,7 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
       ) : null}
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         {plans.map((plan) => {
+          const featured = plan.id === 'advanced'
           const active =
             user?.subscription.plan === plan.id &&
             !user.subscription.accessBlocked
@@ -229,15 +283,26 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
           return (
             <article
               key={plan.id}
-              className="rounded-2xl border border-divider bg-white/70 p-5"
+              className={`plan-option-card flex flex-col rounded-2xl border p-5 ${
+                featured
+                  ? 'plan-option-featured border-emerald/60 bg-white'
+                  : 'border-divider bg-white/70'
+              }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <h3 className="text-lg font-semibold text-high">{plan.name}</h3>
-                {active ? (
-                  <span className="rounded-full bg-emerald/10 px-2 py-1 text-xs text-emerald-deep">
-                    Current
-                  </span>
-                ) : null}
+                <div className="flex flex-wrap justify-end gap-2">
+                  {featured ? (
+                    <span className="plan-popular-badge inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold">
+                      <span aria-hidden="true">✦</span> Most popular
+                    </span>
+                  ) : null}
+                  {active ? (
+                    <span className="rounded-full bg-emerald/10 px-2 py-1 text-xs text-emerald-deep">
+                      Current
+                    </span>
+                  ) : null}
+                </div>
               </div>
               <p className="mt-2 text-2xl font-semibold text-high">
                 {price(amount)}
@@ -246,7 +311,7 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
                   / {billing === 'monthly' ? 'month' : 'year'}
                 </span>
               </p>
-              <ul className="mt-4 space-y-1 text-sm text-medium">
+              <ul className="mt-4 flex-1 space-y-1 text-sm text-medium">
                 <li>
                   {plan.maxCreatedGroups} groups created ·{' '}
                   {plan.maxJoinedGroups} joined
@@ -261,10 +326,14 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
               {plan.id === 'free' ? (
                 onboarding ? (
                   <button
+                    ref={freeTriggerRef}
                     type="button"
                     className="btn-secondary mt-5 w-full"
                     disabled={working}
-                    onClick={() => setConfirmFree(true)}
+                    onClick={() => {
+                      setError('')
+                      setConfirmFree(true)
+                    }}
                   >
                     Continue with Free
                   </button>
@@ -276,7 +345,7 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
               ) : (
                 <button
                   type="button"
-                  className="btn-primary mt-5 w-full"
+                  className={`btn-primary mt-5 w-full ${featured ? 'plan-featured-action' : ''}`}
                   disabled={working || (active && sameBilling)}
                   onClick={() => void selectPaid(plan)}
                 >
@@ -298,38 +367,74 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
         price now and starts the new period immediately; unused time on the old
         plan is not credited.
       </p>
-      {confirmFree && free ? (
-        <div
-          className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950"
-          role="alertdialog"
-          aria-label="Confirm Free plan"
-        >
-          <h3 className="font-semibold">Free has limited access</h3>
-          <p className="mt-2">
-            You can create {free.maxCreatedGroups} group, join{' '}
-            {free.maxJoinedGroups}, include {free.maxMembersPerGroup} people per
-            group, see {historyLabel(free.historyMonths)} of history, and add{' '}
-            {free.monthlyDebtLimit} debts each month.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={working}
-              onClick={() => void selectFree()}
+      {free
+        ? createPortal(
+            <Modal
+              isOpen={confirmFree}
+              variant="dialog"
+              ariaLabel="Free has limited access"
+              panelClassName="max-w-lg"
             >
-              I understand, use Free
-            </button>
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={() => setConfirmFree(false)}
-            >
-              Compare plans
-            </button>
-          </div>
-        </div>
-      ) : null}
+              <div className="flex items-start justify-between gap-4">
+                <span
+                  className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-xl font-bold text-amber-800"
+                  aria-hidden="true"
+                >
+                  !
+                </span>
+                <button
+                  type="button"
+                  className="rounded-full px-2 text-2xl text-low transition hover:bg-emerald/10 hover:text-high"
+                  aria-label="Close warning"
+                  disabled={working}
+                  onClick={() => {
+                    setConfirmFree(false)
+                    setError('')
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <h3 className="mt-4 text-xl font-semibold text-high">
+                Free has limited access
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-medium">
+                You can create {free.maxCreatedGroups} group, join{' '}
+                {free.maxJoinedGroups}, include {free.maxMembersPerGroup} people
+                per group, see {historyLabel(free.historyMonths)} of history,
+                and add {free.monthlyDebtLimit} debts each month.
+              </p>
+              {error ? (
+                <p className="alert-error mt-4" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  ref={compareRef}
+                  type="button"
+                  className="btn-secondary px-5 py-2.5"
+                  disabled={working}
+                  onClick={() => {
+                    setConfirmFree(false)
+                    setError('')
+                  }}
+                >
+                  Compare plans
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary px-5 py-2.5"
+                  disabled={working}
+                  onClick={() => void selectFree()}
+                >
+                  {working ? 'Please wait…' : 'I understand, use Free'}
+                </button>
+              </div>
+            </Modal>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }
