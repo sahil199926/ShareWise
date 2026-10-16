@@ -1,18 +1,22 @@
 export type SubscriptionPlan = 'free' | 'basic' | 'advanced' | 'pro'
 
 export type SubscriptionEntitlements = {
+  subscriptionId: string | null
   plan: SubscriptionPlan
   storedPlan: SubscriptionPlan
   status: 'active' | 'trialing' | 'past_due' | 'cancelled' | 'expired'
   billingInterval: 'monthly' | 'yearly' | null
   priceInr: number
+  startedAt: string | null
+  currentPeriodStart: string | null
   currentPeriodEnd: string | null
+  cancelAtPeriodEnd: boolean
+  cancelledAt: string | null
   showRenewalBanner: boolean
   accessBlocked: boolean
   maxCreatedGroups: number
   maxJoinedGroups: number
   maxMembersPerGroup: number
-  maxDailyEmailAlerts: number
   historyMonths: number
   monthlyDebtLimit: number
   monthlyDebtUsed: number

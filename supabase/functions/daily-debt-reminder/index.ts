@@ -48,6 +48,18 @@ const dateInTimeZone = (date: Date, timeZone: string) => {
   return `${read('year')}-${read('month')}-${read('day')}`
 }
 
+const reminderSlotInTimeZone = (date: Date, timeZone: string) => {
+  const hour = Number(
+    new Intl.DateTimeFormat('en', {
+      timeZone,
+      hour: '2-digit',
+      hourCycle: 'h23',
+    }).format(date),
+  )
+
+  return hour < 15 ? 1 : 2
+}
+
 const groupCandidates = (rows: Candidate[]) => {
   const grouped = new Map<string, ReminderGroup>()
 
@@ -208,7 +220,9 @@ export default {
     const mailFrom = mailFromValue.includes('<')
       ? mailFromValue
       : `Karja Tracker <${mailFromValue}>`
-    const reminderDate = dateInTimeZone(new Date(), timeZone)
+    const currentTime = new Date()
+    const reminderDate = dateInTimeZone(currentTime, timeZone)
+    const reminderSlot = reminderSlotInTimeZone(currentTime, timeZone)
     const { data, error } = await ctx.supabaseAdmin.rpc(
       'daily_reminder_candidates',
     )
@@ -228,6 +242,7 @@ export default {
         .select('status, attempt_count')
         .eq('user_id', group.userId)
         .eq('reminder_date', reminderDate)
+        .eq('reminder_slot', reminderSlot)
         .maybeSingle()
 
       if (previousError) {
@@ -248,6 +263,7 @@ export default {
           {
             user_id: group.userId,
             reminder_date: reminderDate,
+            reminder_slot: reminderSlot,
             status: 'sending',
             debt_count: group.debts.length,
             total_amount: message.total,
@@ -257,7 +273,7 @@ export default {
             sent_at: null,
             updated_at: new Date().toISOString(),
           },
-          { onConflict: 'user_id,reminder_date' },
+          { onConflict: 'user_id,reminder_date,reminder_slot' },
         )
 
       if (claimError) {
@@ -271,7 +287,7 @@ export default {
           mailFrom,
           group.email,
           message,
-          `daily-debt-reminder/${reminderDate}/${group.userId}`,
+          `daily-debt-reminder/${reminderDate}/${reminderSlot}/${group.userId}`,
         )
 
         await ctx.supabaseAdmin
@@ -284,6 +300,7 @@ export default {
           })
           .eq('user_id', group.userId)
           .eq('reminder_date', reminderDate)
+          .eq('reminder_slot', reminderSlot)
         sent += 1
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error'
@@ -296,6 +313,7 @@ export default {
           })
           .eq('user_id', group.userId)
           .eq('reminder_date', reminderDate)
+          .eq('reminder_slot', reminderSlot)
         failed += 1
       }
     }
@@ -303,6 +321,7 @@ export default {
     return Response.json(
       {
         date: reminderDate,
+        slot: reminderSlot,
         recipients: groups.length,
         sent,
         skipped,

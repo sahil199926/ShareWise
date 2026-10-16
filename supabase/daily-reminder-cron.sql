@@ -1,6 +1,6 @@
 -- Run this once in the Supabase SQL editor after deploying the Edge Function.
 -- Replace both placeholder values before running it.
--- 03:30 UTC is 09:00 Asia/Kolkata every day.
+-- 03:30 and 12:30 UTC are 09:00 and 18:00 Asia/Kolkata every day.
 
 create extension if not exists pg_cron;
 create extension if not exists pg_net with schema extensions;
@@ -29,7 +29,7 @@ where jobname = 'daily-debt-reminder';
 
 select cron.schedule(
   'daily-debt-reminder',
-  '30 3 * * *',
+  '30 3,12 * * *',
   $$
   select net.http_post(
     url := (

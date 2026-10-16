@@ -1,18 +1,22 @@
 import type { SubscriptionEntitlements } from '../types/auth'
 
 export const FREE_SUBSCRIPTION: SubscriptionEntitlements = {
+  subscriptionId: null,
   plan: 'free',
   storedPlan: 'free',
   status: 'active',
   billingInterval: null,
   priceInr: 0,
+  startedAt: null,
+  currentPeriodStart: null,
   currentPeriodEnd: null,
+  cancelAtPeriodEnd: false,
+  cancelledAt: null,
   showRenewalBanner: false,
   accessBlocked: false,
   maxCreatedGroups: 2,
   maxJoinedGroups: 4,
   maxMembersPerGroup: 12,
-  maxDailyEmailAlerts: 1,
   historyMonths: 2,
   monthlyDebtLimit: 300,
   monthlyDebtUsed: 0,

@@ -981,6 +981,7 @@ create table if not exists public.daily_reminder_deliveries (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.app_users (id) on delete cascade,
   reminder_date date not null,
+  reminder_slot smallint not null default 1 check (reminder_slot between 1 and 2),
   status text not null check (status in ('sending', 'sent', 'failed')),
   debt_count integer not null default 0 check (debt_count >= 0),
   total_amount numeric(12, 2) not null default 0 check (total_amount >= 0),
@@ -990,7 +991,7 @@ create table if not exists public.daily_reminder_deliveries (
   sent_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (user_id, reminder_date)
+  unique (user_id, reminder_date, reminder_slot)
 );
 
 alter table public.daily_reminder_deliveries enable row level security;

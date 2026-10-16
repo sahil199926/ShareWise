@@ -83,8 +83,7 @@ const ProfileMenu = () => {
             </p>
             <p className="mt-1 text-xs text-low">
               {user.subscription.monthlyDebtUsed.toLocaleString('en-IN')} used
-              this month · {user.subscription.maxDailyEmailAlerts} email alert
-              per day
+              this month
             </p>
           </div>
 

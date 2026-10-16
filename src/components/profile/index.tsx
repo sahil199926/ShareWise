@@ -7,6 +7,7 @@ import { useAuth } from '../../hooks/use-auth'
 import { updateProfile } from '../../services/profile.service'
 import type { User } from '../../types/auth'
 import type { ProfileUpdateInput } from '../../types/profile'
+import { subscriptionHistoryLabel } from '../../constants/subscription-plans'
 
 const formatReadOnly = (value: string | number | null | undefined) => {
   if (value === null || value === undefined || value === '') {
@@ -15,6 +16,49 @@ const formatReadOnly = (value: string | number | null | undefined) => {
 
   return String(value)
 }
+
+const formatDate = (value: string | null) => {
+  if (!value) return 'Not applicable'
+  return new Intl.DateTimeFormat('en-IN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(value))
+}
+
+const titleCase = (value: string) =>
+  value
+    .split('_')
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(' ')
+
+const subscriptionStatusClass = (status: User['subscription']['status']) => {
+  if (status === 'active' || status === 'trialing') {
+    return 'border-emerald/20 bg-emerald/10 text-emerald-deep'
+  }
+  if (status === 'past_due') {
+    return 'border-amber-200 bg-amber-50 text-amber-800'
+  }
+  return 'border-red-200 bg-red-50 text-red-700'
+}
+
+const SubscriptionLimit = ({
+  label,
+  value,
+  detail,
+}: {
+  label: string
+  value: string
+  detail?: string
+}) => (
+  <div className="rounded-2xl border border-divider bg-white/65 p-4">
+    <p className="text-xs font-semibold uppercase tracking-wide text-low">
+      {label}
+    </p>
+    <p className="mt-1 text-xl font-semibold text-high">{value}</p>
+    {detail ? <p className="mt-1 text-xs text-low">{detail}</p> : null}
+  </div>
+)
 
 const toFormState = (user: User): ProfileUpdateInput => ({
   name: user.name,
@@ -31,8 +75,8 @@ const ProfileField = ({ label, value, hint }: ProfileFieldProps) => {
   return (
     <div className="flex flex-col gap-1 border-b border-divider py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
       <span className="field-label">{label}</span>
-      <div className="text-right">
-        <span className="text-base font-semibold text-high">
+      <div className="min-w-0 text-right">
+        <span className="break-all text-base font-semibold text-high">
           {formatReadOnly(value)}
         </span>
         {hint ? <p className="mt-1 text-xs text-low">{hint}</p> : null}
@@ -122,6 +166,29 @@ const Profile = () => {
         avatarUrl: profile.avatarUrl || user.avatarUrl,
       }
     : user
+  const subscription = user.subscription
+  const createdGroupCount = groups.filter(
+    (group) => group.role === 'owner',
+  ).length
+  const joinedGroupCount = groups.filter(
+    (group) => group.role !== 'owner',
+  ).length
+  const debtUsagePercent = Math.min(
+    100,
+    subscription.monthlyDebtLimit > 0
+      ? (subscription.monthlyDebtUsed / subscription.monthlyDebtLimit) * 100
+      : 0,
+  )
+  const billingLabel = subscription.billingInterval
+    ? `₹${subscription.priceInr.toLocaleString('en-IN')} / ${
+        subscription.billingInterval === 'yearly' ? 'year' : 'month'
+      }`
+    : 'No payment required'
+  const periodEndLabel = subscription.cancelAtPeriodEnd
+    ? 'Access ends'
+    : subscription.accessBlocked
+      ? 'Expired on'
+      : 'Renews on'
 
   return (
     <div className="page-shell">
@@ -269,6 +336,159 @@ const Profile = () => {
           </div>
         </div>
 
+        <section className="card mt-6 overflow-hidden">
+          <div className="bg-gradient-to-br from-emerald/12 via-white to-emerald/5 px-6 py-6 sm:px-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="section-label">Subscription</p>
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <h2 className="text-2xl font-semibold capitalize text-high">
+                    {subscription.storedPlan} plan
+                  </h2>
+                  <span
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${subscriptionStatusClass(subscription.status)}`}
+                  >
+                    {titleCase(subscription.status)}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm capitalize text-low">
+                  {subscription.billingInterval
+                    ? `${subscription.billingInterval} billing`
+                    : 'Free access'}{' '}
+                  · {billingLabel}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/80 bg-white/75 px-5 py-3 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-low">
+                  {periodEndLabel}
+                </p>
+                <p className="mt-1 font-semibold text-high">
+                  {formatDate(subscription.currentPeriodEnd)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-6 px-6 py-6 sm:px-8">
+            {subscription.cancelAtPeriodEnd ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                This subscription is scheduled to cancel at the end of the
+                current billing period. Your existing data will remain safe.
+              </div>
+            ) : null}
+
+            <div>
+              <p className="section-label">Billing details</p>
+              <div className="mt-3 divide-y divide-divider rounded-2xl border border-divider bg-white/55 px-4">
+                <ProfileField
+                  label="Subscription started"
+                  value={formatDate(subscription.startedAt)}
+                />
+                <ProfileField
+                  label="Current period started"
+                  value={formatDate(subscription.currentPeriodStart)}
+                />
+                <ProfileField
+                  label={periodEndLabel}
+                  value={formatDate(subscription.currentPeriodEnd)}
+                />
+                <ProfileField
+                  label="Billing type"
+                  value={
+                    subscription.billingInterval
+                      ? titleCase(subscription.billingInterval)
+                      : 'Free'
+                  }
+                />
+                <ProfileField label="Plan price" value={billingLabel} />
+                <ProfileField
+                  label="Payment status"
+                  value={titleCase(subscription.status)}
+                />
+                <ProfileField
+                  label="Cancels after current period"
+                  value={subscription.cancelAtPeriodEnd ? 'Yes' : 'No'}
+                />
+                <ProfileField
+                  label="Cancellation recorded"
+                  value={
+                    subscription.cancelledAt
+                      ? formatDate(subscription.cancelledAt)
+                      : 'Not cancelled'
+                  }
+                />
+                <ProfileField
+                  label="Subscription ID"
+                  value={subscription.subscriptionId || 'Not applicable'}
+                  hint="Unique billing record attached to your account"
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="section-label">Monthly usage</p>
+                  <h3 className="mt-1 text-lg font-semibold text-high">
+                    Debt records
+                  </h3>
+                </div>
+                <p className="text-sm font-semibold text-high">
+                  {subscription.monthlyDebtUsed.toLocaleString('en-IN')} /{' '}
+                  {subscription.monthlyDebtLimit.toLocaleString('en-IN')}
+                </p>
+              </div>
+              <div
+                className="mt-3 h-2.5 overflow-hidden rounded-full bg-emerald/10"
+                role="progressbar"
+                aria-label="Monthly debt usage"
+                aria-valuemin={0}
+                aria-valuemax={subscription.monthlyDebtLimit}
+                aria-valuenow={Math.min(
+                  subscription.monthlyDebtUsed,
+                  subscription.monthlyDebtLimit,
+                )}
+              >
+                <div
+                  className="h-full rounded-full bg-brand transition-[width] duration-500"
+                  style={{ width: `${debtUsagePercent}%` }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <p className="section-label">Plan limits</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <SubscriptionLimit
+                  label="Groups created"
+                  value={`${createdGroupCount} / ${subscription.maxCreatedGroups}`}
+                />
+                <SubscriptionLimit
+                  label="Groups joined"
+                  value={`${joinedGroupCount} / ${subscription.maxJoinedGroups}`}
+                />
+                <SubscriptionLimit
+                  label="People per group"
+                  value={subscription.maxMembersPerGroup.toLocaleString(
+                    'en-IN',
+                  )}
+                />
+                <SubscriptionLimit
+                  label="Expense history"
+                  value={subscriptionHistoryLabel(subscription.historyMonths)}
+                />
+              </div>
+            </div>
+
+            <p className="text-xs leading-5 text-low">
+              These limits apply to groups you create or control as the active
+              subscription admin. A group where you are only a member uses that
+              group admin’s subscription. Payment reminders are a fixed system
+              rule: no more than two combined reminders per person each day.
+            </p>
+          </div>
+        </section>
+
         <section className="card mt-6 p-6 sm:p-8">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -277,7 +497,9 @@ const Profile = () => {
                 Your communities
               </h2>
             </div>
-            <p className="text-sm text-low">{groups.length} of 10 groups</p>
+            <p className="text-sm text-low">
+              {createdGroupCount} created · {joinedGroupCount} joined
+            </p>
           </div>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -304,7 +526,7 @@ const Profile = () => {
             ))}
           </div>
 
-          {groups.length < 10 ? (
+          {createdGroupCount < subscription.maxCreatedGroups ? (
             <Link
               to="/onboarding?create=1"
               className="btn-primary mt-5 inline-flex"
