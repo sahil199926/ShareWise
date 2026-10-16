@@ -1,8 +1,4 @@
-import {
-  signInWithGooglePopup,
-  signInWithReviewerPassword as firebaseReviewerSignIn,
-  signOutFromFirebase,
-} from '../lib/firebase'
+import { signInWithGooglePopup } from '../lib/firebase'
 import { supabase } from '../lib/supabase'
 import { FREE_SUBSCRIPTION } from '../constants/subscription-plans'
 import type { AuthContextPayload } from '../types/auth'
@@ -10,24 +6,6 @@ import type { AuthContextPayload } from '../types/auth'
 export const signInWithGoogle = async (returnPath = '/dashboard') => {
   sessionStorage.setItem('karja_auth_return_path', returnPath)
   await signInWithGooglePopup()
-}
-
-export const signInWithReviewerPassword = async (
-  email: string,
-  password: string,
-  returnPath = '/dashboard',
-) => {
-  if (email.trim().toLowerCase() !== 'test@gmail.com') {
-    throw new Error('This sign-in is for the reviewer account only.')
-  }
-  sessionStorage.setItem('karja_auth_return_path', returnPath)
-  await firebaseReviewerSignIn(email.trim().toLowerCase(), password)
-  try {
-    await getMyContext()
-  } catch {
-    await signOutFromFirebase()
-    throw new Error('The reviewer account is not ready yet. Contact support.')
-  }
 }
 
 export const getMyContext = async () => {

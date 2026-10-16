@@ -9,7 +9,7 @@ import {
   verifyWebhookSignature,
 } from './billing.js'
 
-test('only the designated reviewer password account gets non-Google billing access', () => {
+test('only verified Google sign-in gets billing access', () => {
   const google = {
     email: 'owner@example.com',
     email_verified: true,
@@ -23,10 +23,18 @@ test('only the designated reviewer password account gets non-Google billing acce
       email_verified: false,
       firebase: { sign_in_provider: 'password' },
     }),
-    true,
+    false,
   )
   assert.equal(
     isApprovedFirebaseSignIn({ ...google, email_verified: false }),
+    false,
+  )
+  assert.equal(
+    isApprovedFirebaseSignIn({
+      ...google,
+      email_verified: true,
+      firebase: { sign_in_provider: 'password' },
+    }),
     false,
   )
   assert.equal(

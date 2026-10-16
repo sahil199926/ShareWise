@@ -111,23 +111,14 @@ the browser cannot activate paid access.
 
 ## Razorpay subscriptions
 
-### Reviewer test login
+### Sign-in
 
-The `/login` page also offers an email/password form for the dedicated
-`test@gmail.com` review account. Google remains the only provider for ordinary
-users. The password is never stored in this repository. To make the test login
-usable, enable Firebase Email/Password, create the user in Firebase, and run
-`supabase/migrations/20261016170000_reviewer_password_access.sql`. Then set
-the actual Firebase UID in `supabase/manual/reviewer_demo_seed.sql` and run it
-once in the Supabase SQL editor. That script creates a separate active Free-plan
-group with one sample member, leaving one Free-plan member slot for testing.
-The database accepts password tokens only for the pre-provisioned UID and email;
-the billing server applies the same provider/email restriction. Do not give the
-reviewer access to any production group.
-
-For a shared reviewer credential, rotate the password and remove the account
-after review. Keep paid checkout disabled until the webhook and Razorpay review
-are complete.
+Karja Tracker accepts verified Google sign-in only. The former reviewer
+email/password path was removed from the UI and billing server, and
+`supabase/migrations/20261016234500_google_only_sign_in.sql` restores the
+database's Google-only Firebase JWT policy. Disable Firebase Email/Password in
+the Firebase console as well. The isolated reviewer demo data may remain in the
+database, but the former password account cannot use it to sign in.
 
 The app shows all four active plans before a new group owner creates a group.
 Group admins can also change plans from Profile. The most recently added or

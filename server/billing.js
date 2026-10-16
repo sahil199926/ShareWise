@@ -93,10 +93,8 @@ const firebaseCerts = async () => {
 }
 
 export const isApprovedFirebaseSignIn = (claims) =>
-  ((claims.firebase?.sign_in_provider === 'google.com' &&
-    claims.email_verified === true) ||
-    (claims.firebase?.sign_in_provider === 'password' &&
-      String(claims.email).toLowerCase() === 'test@gmail.com'))
+  claims.firebase?.sign_in_provider === 'google.com' &&
+  claims.email_verified === true
 
 const signedInUser = async (request, db, env) => {
   const token = request.headers.authorization?.match(/^Bearer (.+)$/i)?.[1]
