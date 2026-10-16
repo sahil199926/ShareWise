@@ -34,7 +34,7 @@ const PlansPage = () => {
           </h1>
           <p className="mt-2 text-sm text-low">
             {activeGroup
-              ? 'Choose a plan for your account. Groups you created use its limits.'
+              ? 'Choose a plan for your account. A group uses its latest admin’s limits, or its owner’s when there is no admin.'
               : 'Select a plan before creating your first group.'}
           </p>
           <div className="mt-7">

@@ -112,7 +112,10 @@ the browser cannot activate paid access.
 ## Razorpay subscriptions
 
 The app shows all four active plans before a new group owner creates a group.
-Group admins can also change plans from Profile. Paid plans use Razorpay
+Group admins can also change plans from Profile. The most recently added or
+promoted admin controls each group's shared limits; if no admin remains, the
+owner controls them. Removing or demoting the current admin restores control
+to the previous latest admin. Paid plans use Razorpay
 Subscriptions with automatic monthly or yearly renewal. A plan change charges
 the full new price immediately; after the first charge is confirmed, the old
 Razorpay subscription is cancelled and the new plan becomes active. The old

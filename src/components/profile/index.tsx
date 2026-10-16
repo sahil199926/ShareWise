@@ -552,9 +552,10 @@ const Profile = () => {
           {canChoosePlan ? (
             <>
               <p className="mb-5 text-sm text-low">
-                This plan belongs to your account. A group uses its creator’s
-                plan for shared limits, so upgrading your account changes the
-                capacity of groups you created.
+                This plan belongs to your account. A group uses its most
+                recently added or promoted admin’s plan for shared limits. If
+                there is no admin, it uses the owner’s plan. Your upgrade
+                changes a group’s capacity only while you control its plan.
               </p>
               <PlanChooser />
             </>
