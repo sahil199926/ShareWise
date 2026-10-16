@@ -2,13 +2,25 @@ import { DAY_RANGES, type DayRange } from '../../lib/leaderboard'
 
 type DayRangeFilterProps = {
   value: DayRange
+  maxDays: number
   onChange: (value: DayRange) => void
 }
 
-const DayRangeFilter = ({ value, onChange }: DayRangeFilterProps) => {
+const RANGE_LABELS: Record<DayRange, string> = {
+  30: '30 days',
+  60: '2 months',
+  180: '6 months',
+  365: '1 year',
+  730: '2 years',
+  3650: '10 years',
+}
+
+const DayRangeFilter = ({ value, maxDays, onChange }: DayRangeFilterProps) => {
+  const availableRanges = DAY_RANGES.filter((option) => option <= maxDays)
+
   return (
     <div className="flex flex-wrap gap-1" role="group" aria-label="Last days">
-      {DAY_RANGES.map((option) => (
+      {availableRanges.map((option) => (
         <button
           key={option}
           type="button"
@@ -18,7 +30,7 @@ const DayRangeFilter = ({ value, onChange }: DayRangeFilterProps) => {
             value === option ? 'filter-chip-active' : 'filter-chip'
           } px-2.5 py-1 text-xs sm:px-3 sm:py-1.5 sm:text-sm`}
         >
-          {option} days
+          {RANGE_LABELS[option]}
         </button>
       ))}
     </div>

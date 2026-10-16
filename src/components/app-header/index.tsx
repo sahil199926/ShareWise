@@ -4,6 +4,7 @@ import { motion } from 'motion/react'
 import { useAuth } from '../../hooks/use-auth'
 import Logo from '../logo'
 import ProfileMenu from '../profile-menu'
+import SubscriptionBanner from '../subscription-banner'
 
 const NAV_LINKS = [
   { to: '/dashboard', label: 'Overview', adminOnly: false },
@@ -31,14 +32,20 @@ const AppHeader = ({
   onLogout,
   showNavigation = true,
 }: AppHeaderProps) => {
-  const { groups, activeGroup, selectGroup } = useAuth()
+  const { user, groups, activeGroup, selectGroup } = useAuth()
   const { pathname } = useLocation()
   const navigate = useNavigate()
 
   const visibleNavLinks = NAV_LINKS
+  const createdGroupCount = groups.filter(
+    (group) => group.role === 'owner',
+  ).length
+  const canCreateGroup =
+    createdGroupCount < (user?.subscription.maxCreatedGroups ?? 2)
 
   return (
     <header className="border-b border-white/50 bg-white/45 backdrop-blur-xl">
+      <SubscriptionBanner />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-3 py-3 sm:py-4">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
@@ -61,7 +68,7 @@ const AppHeader = ({
                     {group.name}
                   </option>
                 ))}
-                {groups.length < 10 ? (
+                {canCreateGroup ? (
                   <option value="__create__">＋ Create group</option>
                 ) : null}
               </select>

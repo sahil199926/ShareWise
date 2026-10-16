@@ -12,6 +12,7 @@ import SelectField from '../select-field'
 import SheetSyncModal from '../sheet-sync-modal'
 import { DebtGridSkeleton } from '../skeleton'
 import { DEBT_PAGE_SIZE } from '../../constants/pagination'
+import { subscriptionHistoryDays } from '../../constants/subscription-plans'
 import { useAuth } from '../../hooks/use-auth'
 import { usePeopleFaces } from '../../hooks/use-people-faces'
 import { isSuperAdmin } from '../../lib/auth-utils'
@@ -52,17 +53,22 @@ const FILTERS: Array<{ id: FilterKey; label: string }> = [
 
 const DebtOverview = () => {
   const reduceMotion = useReducedMotion()
-  const { user, activeGroup, logout } = useAuth()
+  const { user, activeGroup, refreshContext, logout } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const isAdmin = isSuperAdmin(user)
   const requestedPerson = searchParams.get('person') ?? ''
   const signedInEmail = user?.email ?? ''
+  const historyDayLimit = subscriptionHistoryDays(
+    activeGroup?.subscription.historyMonths ?? 2,
+  )
 
   const [debts, setDebts] = useState<Debt[]>([])
   const [users, setUsers] = useState<MasterUserOption[]>([])
   const [filter, setFilter] = useState<FilterKey>('open')
   const [range, setRange] = useState<DayRange>(30)
+  const effectiveRange =
+    range <= historyDayLimit ? range : (historyDayLimit as DayRange)
   const [page, setPage] = useState(1)
   const [pagination, setPagination] = useState<PaginationMeta>({
     page: 1,
@@ -120,11 +126,18 @@ const DebtOverview = () => {
       pageSize: DEBT_PAGE_SIZE,
       status: selectedStatus,
       personId: personEmail ? selectedPersonId : null,
-      days: range,
+      days: effectiveRange,
     })
     setDebts(result.debts)
     setPagination(result.pagination)
-  }, [activeGroup, page, personEmail, range, selectedPersonId, selectedStatus])
+  }, [
+    activeGroup,
+    effectiveRange,
+    page,
+    personEmail,
+    selectedPersonId,
+    selectedStatus,
+  ])
 
   useEffect(() => {
     const timer = window.setTimeout(
@@ -239,6 +252,7 @@ const DebtOverview = () => {
         )
       }
       await loadDebts()
+      await refreshContext()
       setIsModalOpen(false)
       setEditingDebt(undefined)
     } finally {
@@ -262,6 +276,7 @@ const DebtOverview = () => {
           : `Expense created. ${created.length} ${created.length === 1 ? 'debt was' : 'debts were'} added. ${mail.message}`,
       )
       await loadDebts()
+      await refreshContext()
       setIsExpenseModalOpen(false)
     } finally {
       setIsSubmitting(false)
@@ -291,6 +306,7 @@ const DebtOverview = () => {
           : `${input.sheetTitle} synced. ${created.length} ${created.length === 1 ? 'debt was' : 'debts were'} created. ${mail.message}`,
       )
       await loadDebts()
+      await refreshContext()
       setIsSheetSyncOpen(false)
     } finally {
       setIsSubmitting(false)
@@ -316,6 +332,7 @@ const DebtOverview = () => {
   )
 
   const pagedDebts = debts
+  const debtCreationBlocked = activeGroup?.canCreateDebt === false
 
   return (
     <div className="page-shell">
@@ -329,7 +346,8 @@ const DebtOverview = () => {
         onLogout={handleLogout}
         navAside={
           <DayRangeFilter
-            value={range}
+            value={effectiveRange}
+            maxDays={historyDayLimit}
             onChange={(next) => {
               setRange(next)
               setPage(1)
@@ -337,7 +355,7 @@ const DebtOverview = () => {
           />
         }
         actions={
-          isAdmin ? (
+          isAdmin && !debtCreationBlocked ? (
             <div className="flex flex-col gap-2 min-[420px]:flex-row">
               {activeGroup?.sheetSyncEnabled ? (
                 <button
@@ -371,6 +389,14 @@ const DebtOverview = () => {
       />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {debtCreationBlocked ? (
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <strong className="font-semibold">New debts are paused.</strong>{' '}
+            {activeGroup?.freezeReason ||
+              'The subscription controlling this group has reached a limit.'}{' '}
+            Existing debts and settlement history remain available.
+          </div>
+        ) : null}
         {error ? <div className="alert-error mb-6">{error}</div> : null}
         {success ? <div className="alert-success mb-6">{success}</div> : null}
 
@@ -719,7 +745,7 @@ const DebtOverview = () => {
         }}
       />
 
-      {isAdmin ? (
+      {isAdmin && !debtCreationBlocked ? (
         <>
           <DebtFormModal
             isOpen={isModalOpen}

@@ -84,10 +84,9 @@ email.
 
 Deploy in this order so the frontend never reaches an old permissive schema:
 
-1. Apply `supabase/schema.sql` for a new database, then apply
-   `supabase/migrations/20261015110000_multitenant_security.sql`. For an
-   existing database that already has the tenant migration, additionally apply
-   `supabase/migrations/20261015210000_firebase_direct_auth.sql`.
+1. Apply `supabase/schema.sql` for a new database, then apply every file in
+   `supabase/migrations` in filename order. Existing databases should apply
+   only the migrations they have not already recorded.
 2. In Firebase Authentication, enable Google and add the local and production
    domains as authorized domains. Add the `VITE_FIREBASE_*` web-app values to
    the frontend environment.
@@ -103,9 +102,15 @@ cannot gain access by supplying another group's UUID. Financial writes are
 available only through guarded database functions; direct debt inserts,
 updates, and deletes are revoked.
 
-New groups allow 10 members (including the owner) and three group creations per
-account per rolling 24 hours. Higher limits should be handled through
-`contact@eonlint.com`.
+Groups allow 12 members (including the owner) and three group creations per
+account per rolling 24 hours. Subscription limits are enforced in the database:
+Free and Basic allow 2 created groups, 4 joined groups, 2 months of history and
+300 new debt records per month; Advanced allows 10 groups of each kind, 2 years
+of history and 1,000 debts per month; Pro allows 40 groups of each kind, 10
+years of history and 10,000 debts per month. Billing must update
+`app_users.subscription_plan`, `subscription_status`, and
+`subscription_current_period_end` through a trusted server or webhook—never
+from the browser.
 
 ## Daily open-payment reminders
 

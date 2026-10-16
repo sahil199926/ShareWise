@@ -28,7 +28,7 @@ export type DayStat = {
   received: number
 }
 
-export const DAY_RANGES = [30, 60, 90, 180] as const
+export const DAY_RANGES = [30, 60, 180, 365, 730, 3650] as const
 
 export type DayRange = (typeof DAY_RANGES)[number]
 

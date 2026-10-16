@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { APP_NAME } from '../../constants/brand'
 import { useAuth } from '../../hooks/use-auth'
 import { firebaseReady } from '../../lib/firebase'
@@ -13,6 +13,9 @@ const Login = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { isAuthenticated, isBootstrapping, activeGroup } = useAuth()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
+  const selectedPlan = searchParams.get('plan')
+  const selectedBilling = searchParams.get('billing')
   const fromLocation = (
     location.state as {
       from?: { pathname?: string; search?: string; hash?: string }
@@ -26,6 +29,15 @@ const Login = () => {
     setError('')
     setIsSubmitting(true)
     try {
+      if (
+        ['basic', 'advanced', 'pro'].includes(selectedPlan ?? '') &&
+        ['monthly', 'yearly'].includes(selectedBilling ?? '')
+      ) {
+        sessionStorage.setItem(
+          'karja_pending_subscription',
+          JSON.stringify({ plan: selectedPlan, billing: selectedBilling }),
+        )
+      }
       await signInWithGoogle(requestedPath)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Google sign-in failed')
@@ -60,6 +72,11 @@ const Login = () => {
           <p className="mt-2 text-center text-sm text-low">
             Welcome to {APP_NAME}
           </p>
+          {selectedPlan && selectedBilling ? (
+            <p className="mt-4 rounded-2xl border border-emerald/15 bg-emerald/8 px-4 py-3 text-center text-sm capitalize text-medium">
+              Selected: {selectedPlan} · {selectedBilling} billing
+            </p>
+          ) : null}
           <div className="mt-8 space-y-4">
             {error ? <p className="alert-error">{error}</p> : null}
             {firebaseReady ? (

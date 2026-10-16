@@ -5,6 +5,7 @@ import DayRangeFilter from '../day-range-filter'
 import LeaderboardDetail from '../leaderboard-detail'
 import LeaderboardFrame from '../leaderboard-frame'
 import { StatCardSkeleton } from '../skeleton'
+import { subscriptionHistoryDays } from '../../constants/subscription-plans'
 import { useAuth } from '../../hooks/use-auth'
 import {
   DAY_RANGES,
@@ -35,6 +36,11 @@ const LeaderboardPerson = () => {
       ? (requestedDays as DayRange)
       : 30,
   )
+  const historyDayLimit = subscriptionHistoryDays(
+    activeGroup?.subscription.historyMonths ?? 2,
+  )
+  const effectiveRange =
+    range <= historyDayLimit ? range : (historyDayLimit as DayRange)
 
   useEffect(() => {
     if (!activeGroup) return
@@ -71,11 +77,11 @@ const LeaderboardPerson = () => {
 
   const windowPerson = useMemo(() => {
     return (
-      buildLeaderboard(filterDebtsByDays(debts, range)).find(
+      buildLeaderboard(filterDebtsByDays(debts, effectiveRange)).find(
         (entry) => entry.email === email,
       ) ?? null
     )
-  }, [debts, email, range])
+  }, [debts, effectiveRange, email])
 
   useEffect(() => {
     const name = windowPerson?.name || person?.name
@@ -89,10 +95,10 @@ const LeaderboardPerson = () => {
         openOweCount: windowPerson?.openOweCount ?? 0,
         openReceiveCount: windowPerson?.openReceiveCount ?? 0,
       },
-      range,
+      effectiveRange,
     )
     return setShareMeta(copy.title, copy.description)
-  }, [person, range, windowPerson])
+  }, [effectiveRange, person, windowPerson])
 
   return (
     <LeaderboardFrame
@@ -100,7 +106,8 @@ const LeaderboardPerson = () => {
       subtitle="Contributions, what they still owe, and what is coming in."
       headerAside={
         <DayRangeFilter
-          value={range}
+          value={effectiveRange}
+          maxDays={historyDayLimit}
           onChange={(next) => {
             setRange(next)
             setSearchParams({ days: String(next) }, { replace: true })
@@ -138,7 +145,11 @@ const LeaderboardPerson = () => {
 
       {person ? (
         <div className="mt-6">
-          <LeaderboardDetail person={person} debts={debts} range={range} />
+          <LeaderboardDetail
+            person={person}
+            debts={debts}
+            range={effectiveRange}
+          />
         </div>
       ) : null}
     </LeaderboardFrame>

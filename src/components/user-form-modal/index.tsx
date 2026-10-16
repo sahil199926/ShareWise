@@ -1,5 +1,9 @@
 import { useState } from 'react'
-import { DEFAULT_USER_TYPE, USER_TYPES } from '../../constants/user-types'
+import {
+  DEFAULT_USER_TYPE,
+  SUPER_ADMIN_TYPE,
+  USER_TYPES,
+} from '../../constants/user-types'
 import type { MasterUser, MasterUserInput } from '../../types/master-user'
 import Modal from '../modal'
 import SelectField from '../select-field'
@@ -50,6 +54,13 @@ const UserFormModal = ({
     getDefaultForm(mode, initialData),
   )
   const [error, setError] = useState('')
+  const [adminTransferAcknowledged, setAdminTransferAcknowledged] =
+    useState(false)
+
+  const willTransferSubscription =
+    form.type === SUPER_ADMIN_TYPE &&
+    (mode === 'create' ||
+      (initialData?.role !== 'owner' && initialData?.role !== 'admin'))
 
   const handleChange = (field: keyof MasterUserInput, value: string) => {
     setForm((current) => ({
@@ -66,6 +77,11 @@ const UserFormModal = ({
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError('')
+
+    if (willTransferSubscription && !adminTransferAcknowledged) {
+      setError('Confirm the subscription-limit transfer before continuing.')
+      return
+    }
 
     try {
       await onSubmit(form)
@@ -143,6 +159,42 @@ const UserFormModal = ({
             />
           </div>
 
+          {willTransferSubscription ? (
+            <div className="sm:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+              <p className="font-semibold">
+                Admin access transfers plan control
+              </p>
+              <p className="mt-1 leading-6 text-amber-900">
+                This group will immediately use{' '}
+                {form.name || form.email || 'this person'}’s subscription
+                limits. If their plan is lower, expired, or already at its debt
+                limit, existing data stays visible but new debts will be frozen.
+              </p>
+              {initialData?.subscription ? (
+                <p className="mt-2 text-xs font-medium text-amber-900">
+                  Current target plan: {initialData.subscription.storedPlan} ·{' '}
+                  {initialData.subscription.status} ·{' '}
+                  {initialData.subscription.monthlyDebtLimit.toLocaleString(
+                    'en-IN',
+                  )}{' '}
+                  debts/month
+                </p>
+              ) : null}
+              <label className="mt-3 flex cursor-pointer items-start gap-2">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={adminTransferAcknowledged}
+                  onChange={(event) =>
+                    setAdminTransferAcknowledged(event.target.checked)
+                  }
+                  disabled={isSubmitting}
+                />
+                <span>I understand and want to transfer plan control.</span>
+              </label>
+            </div>
+          ) : null}
+
           <div>
             <label className="field-label">Age</label>
             <input
@@ -175,7 +227,14 @@ const UserFormModal = ({
           >
             Cancel
           </button>
-          <button type="submit" disabled={isSubmitting} className="btn-primary">
+          <button
+            type="submit"
+            disabled={
+              isSubmitting ||
+              (willTransferSubscription && !adminTransferAcknowledged)
+            }
+            className="btn-primary"
+          >
             {isSubmitting
               ? 'Saving...'
               : mode === 'create'

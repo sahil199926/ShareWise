@@ -1,3 +1,5 @@
+import type { SubscriptionEntitlements } from './auth'
+
 export type MasterUser = {
   id: string
   membershipId?: string
@@ -9,6 +11,7 @@ export type MasterUser = {
   age: number | null
   score: number | null
   avatarUrl?: string | null
+  subscription?: SubscriptionEntitlements
 }
 
 export type MasterUserInput = {

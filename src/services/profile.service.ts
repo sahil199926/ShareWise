@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase'
 import type { User } from '../types/auth'
 import type { ProfileUpdateInput } from '../types/profile'
 
-const toUser = (value: unknown): User => {
+const toUser = (value: unknown): Omit<User, 'subscription'> => {
   const user = value as Partial<User>
 
   if (!user?.email || !user.name) {
@@ -28,7 +28,12 @@ export const getProfile = async (currentUser: User) => {
     throw new Error(error?.message || 'Failed to load profile')
   }
 
-  return { ...toUser(data), type: currentUser.type, role: currentUser.role }
+  return {
+    ...toUser(data),
+    type: currentUser.type,
+    role: currentUser.role,
+    subscription: currentUser.subscription,
+  }
 }
 
 export const updateProfile = async (
@@ -44,5 +49,10 @@ export const updateProfile = async (
     throw new Error(error?.message || 'Failed to update profile')
   }
 
-  return { ...toUser(data), type: currentUser.type, role: currentUser.role }
+  return {
+    ...toUser(data),
+    type: currentUser.type,
+    role: currentUser.role,
+    subscription: currentUser.subscription,
+  }
 }

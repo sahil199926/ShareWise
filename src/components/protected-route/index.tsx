@@ -2,6 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/use-auth'
 import type { ReactNode } from 'react'
 import LazyFallback from '../lazy-fallback'
+import SubscriptionBlocked from '../subscription-blocked'
 
 type ProtectedRouteProps = {
   children: ReactNode
@@ -12,7 +13,7 @@ const ProtectedRoute = ({
   children,
   allowWithoutGroup = false,
 }: ProtectedRouteProps) => {
-  const { isAuthenticated, isBootstrapping, activeGroup } = useAuth()
+  const { isAuthenticated, isBootstrapping, activeGroup, user } = useAuth()
   const location = useLocation()
 
   if (isBootstrapping) {
@@ -21,6 +22,10 @@ const ProtectedRoute = ({
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace state={{ from: location }} />
+  }
+
+  if (user?.subscription.accessBlocked) {
+    return <SubscriptionBlocked />
   }
 
   if (!allowWithoutGroup && !activeGroup) {

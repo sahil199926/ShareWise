@@ -100,10 +100,12 @@ const Master = () => {
     try {
       if (modalMode === 'create') {
         await createUser(activeGroup.id, data)
+        await refreshContext()
         setCurrentPage(1)
         reloadUsers(1)
       } else if (editingUser) {
         await updateUser(activeGroup.id, editingUser.id, data)
+        await refreshContext()
         reloadUsers(currentPage)
       }
     } finally {
@@ -194,6 +196,41 @@ const Master = () => {
                 </p>
               </div>
             </div>
+            <div className="mt-5 grid gap-3 border-t border-divider pt-5 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-low">
+                  Subscription controller
+                </p>
+                <p className="mt-1 text-sm font-medium text-high">
+                  {activeGroup.subscriptionOwner.name}
+                </p>
+                <p className="text-xs text-low">
+                  {activeGroup.subscriptionOwner.email} ·{' '}
+                  {activeGroup.subscription.plan} plan
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-low">
+                  Debt capacity
+                </p>
+                <p className="mt-1 text-sm font-medium text-high">
+                  {activeGroup.subscription.monthlyDebtUsed.toLocaleString(
+                    'en-IN',
+                  )}{' '}
+                  of{' '}
+                  {activeGroup.subscription.monthlyDebtLimit.toLocaleString(
+                    'en-IN',
+                  )}{' '}
+                  this month
+                </p>
+              </div>
+            </div>
+            {activeGroup.freezeReason ? (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                Existing data is safe, but new debts are frozen:{' '}
+                {activeGroup.freezeReason}
+              </div>
+            ) : null}
           </section>
         ) : null}
 

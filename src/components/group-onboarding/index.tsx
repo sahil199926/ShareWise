@@ -3,13 +3,26 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/use-auth'
 import { createGroup, type NewGroupMember } from '../../services/groups.service'
 import Logo from '../logo'
+import SubscriptionBanner from '../subscription-banner'
 
 const blankMember = (): NewGroupMember => ({ name: '', email: '' })
+
+const pendingSubscription = () => {
+  try {
+    const value = JSON.parse(
+      sessionStorage.getItem('karja_pending_subscription') ?? 'null',
+    ) as { plan?: string; billing?: string } | null
+    return value?.plan && value.billing ? value : null
+  } catch {
+    return null
+  }
+}
 
 const GroupOnboarding = () => {
   const {
     activeGroup,
     groups,
+    user,
     isAuthenticated,
     refreshContext,
     selectGroup,
@@ -19,10 +32,11 @@ const GroupOnboarding = () => {
   const [searchParams] = useSearchParams()
   const isCreatingAnother = searchParams.get('create') === '1'
   const [name, setName] = useState('')
-  const [memberLimit, setMemberLimit] = useState(12)
+  const memberLimit = user?.subscription.maxMembersPerGroup ?? 12
   const [members, setMembers] = useState<NewGroupMember[]>([blankMember()])
   const [error, setError] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const selectedSubscription = pendingSubscription()
 
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (activeGroup && !isCreatingAnother)
@@ -61,156 +75,168 @@ const GroupOnboarding = () => {
   }
 
   const usedMemberCount = members.filter((item) => item.email.trim()).length + 1
+  const createdGroupCount = groups.filter(
+    (group) => group.role === 'owner',
+  ).length
+  const createGroupLimit = user?.subscription.maxCreatedGroups ?? 2
+  const joinedGroupLimit = user?.subscription.maxJoinedGroups ?? 4
+  const hasReachedCreateLimit = createdGroupCount >= createGroupLimit
+  const planLabel = user?.subscription.plan
+    ? `${user.subscription.plan[0].toUpperCase()}${user.subscription.plan.slice(1)}`
+    : 'Free'
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-8">
-      <main className="glass-card w-full max-w-2xl p-6 sm:p-8">
-        <div className="flex items-center justify-between gap-4">
-          <Logo size="md" />
-          <button
-            type="button"
-            className="btn-ghost"
-            onClick={() => void logout()}
-          >
-            Log out
-          </button>
-        </div>
-        <p className="section-label mt-8">Create your community</p>
-        <h1 className="mt-2 text-2xl font-semibold text-high sm:text-3xl">
-          {isCreatingAnother
-            ? 'Create another group'
-            : 'You’re not part of a group yet'}
-        </h1>
-        <p className="mt-2 text-sm text-low">
-          A group supports 12 people by default. Invitations activate only when
-          the same verified Google email signs in. You can belong to up to 10
-          groups.
-        </p>
-        <form className="mt-6 space-y-5" onSubmit={submit}>
-          {error ? <p className="alert-error">{error}</p> : null}
-          <div>
-            <label className="field-label" htmlFor="group-name">
-              Group name
-            </label>
-            <input
-              id="group-name"
-              className="input-field"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              required
-              maxLength={80}
-              placeholder="Weekend crew"
-            />
-          </div>
-          <div>
-            <label className="field-label" htmlFor="member-limit">
-              Maximum members
-            </label>
-            <input
-              id="member-limit"
-              className="input-field"
-              type="number"
-              min={2}
-              max={10000}
-              value={memberLimit}
-              onChange={(event) =>
-                setMemberLimit(Math.max(2, Number(event.target.value) || 2))
-              }
-              required
-            />
-            <p className="mt-1 text-xs text-low">
-              Includes you. The default is 12 and can vary by group.
-            </p>
-          </div>
-          <div>
-            <div className="flex items-center justify-between gap-3">
-              <label className="field-label">Invite people</label>
-              <span className="text-xs text-low">
-                {usedMemberCount}/{memberLimit} members
-              </span>
-            </div>
-            <div className="mt-2 space-y-3">
-              {members.map((member, index) => (
-                <div
-                  key={index}
-                  className="grid gap-2 sm:grid-cols-[0.8fr_1.2fr_auto]"
-                >
-                  <input
-                    className="input-field mt-0"
-                    value={member.name}
-                    onChange={(event) =>
-                      updateMember(index, 'name', event.target.value)
-                    }
-                    placeholder="Name"
-                    aria-label={`Member ${index + 1} name`}
-                  />
-                  <input
-                    className="input-field mt-0"
-                    type="email"
-                    value={member.email}
-                    onChange={(event) =>
-                      updateMember(index, 'email', event.target.value)
-                    }
-                    placeholder="Google account email"
-                    aria-label={`Member ${index + 1} email`}
-                  />
-                  <button
-                    type="button"
-                    className="btn-ghost"
-                    onClick={() =>
-                      setMembers((current) =>
-                        current.filter((_, itemIndex) => itemIndex !== index),
-                      )
-                    }
-                    disabled={members.length === 1}
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-            {members.length < memberLimit - 1 ? (
-              <button
-                type="button"
-                className="btn-secondary mt-3"
-                onClick={() =>
-                  setMembers((current) => [...current, blankMember()])
-                }
-              >
-                Add another
-              </button>
-            ) : null}
-          </div>
-          <div className="rounded-2xl bg-emerald/8 px-4 py-3 text-sm text-medium">
-            Need a custom high-capacity group? Contact{' '}
-            <a className="link-accent" href="mailto:contact@eonlint.com">
-              contact@eonlint.com
-            </a>
-            .
-          </div>
-          {isCreatingAnother ? (
+    <div className="min-h-screen">
+      <SubscriptionBanner />
+      <div className="flex min-h-[calc(100vh-41px)] items-center justify-center px-4 py-8">
+        <main className="glass-card w-full max-w-2xl p-6 sm:p-8">
+          <div className="flex items-center justify-between gap-4">
+            <Logo size="md" />
             <button
               type="button"
-              className="btn-ghost w-full"
-              onClick={() => navigate(-1)}
-              disabled={isSaving}
+              className="btn-ghost"
+              onClick={() => void logout()}
             >
-              Cancel
+              Log out
             </button>
+          </div>
+          <p className="section-label mt-8">Create your community</p>
+          <h1 className="mt-2 text-2xl font-semibold text-high sm:text-3xl">
+            {isCreatingAnother
+              ? 'Create another group'
+              : 'You’re not part of a group yet'}
+          </h1>
+          <p className="mt-2 text-sm text-low">
+            A group supports {memberLimit} people. Your {planLabel} plan can
+            create {createGroupLimit} groups and join {joinedGroupLimit} others.
+            Invitations activate when the same verified Google email signs in.
+          </p>
+          {selectedSubscription ? (
+            <div className="mt-5 rounded-2xl border border-emerald/20 bg-emerald/8 px-4 py-3 text-sm text-medium">
+              <strong className="capitalize text-high">
+                {selectedSubscription.plan} · {selectedSubscription.billing}
+              </strong>
+              <p className="mt-1 text-xs leading-5 text-low">
+                This selection is saved for the upcoming Razorpay checkout. A
+                paid plan is attached to your user account only after payment is
+                confirmed.
+              </p>
+            </div>
           ) : null}
-          <button
-            className="btn-primary w-full"
-            disabled={isSaving || groups.length >= 10}
-          >
-            {isSaving ? 'Creating group…' : 'Create group'}
-          </button>
-          {groups.length >= 10 ? (
-            <p className="alert-error">
-              You already belong to 10 groups. Leave or delete one first.
-            </p>
-          ) : null}
-        </form>
-      </main>
+          <form className="mt-6 space-y-5" onSubmit={submit}>
+            {error ? <p className="alert-error">{error}</p> : null}
+            <div>
+              <label className="field-label" htmlFor="group-name">
+                Group name
+              </label>
+              <input
+                id="group-name"
+                className="input-field"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
+                maxLength={80}
+                placeholder="Weekend crew"
+              />
+            </div>
+            <div className="rounded-2xl border border-emerald/15 bg-white/50 px-4 py-3">
+              <p className="field-label">Maximum members</p>
+              <p className="mt-1 text-sm text-low">
+                Your plan allows {memberLimit} people in this group, including
+                you.
+              </p>
+            </div>
+            <div>
+              <div className="flex items-center justify-between gap-3">
+                <label className="field-label">Invite people</label>
+                <span className="text-xs text-low">
+                  {usedMemberCount}/{memberLimit} members
+                </span>
+              </div>
+              <div className="mt-2 space-y-3">
+                {members.map((member, index) => (
+                  <div
+                    key={index}
+                    className="grid gap-2 sm:grid-cols-[0.8fr_1.2fr_auto]"
+                  >
+                    <input
+                      className="input-field mt-0"
+                      value={member.name}
+                      onChange={(event) =>
+                        updateMember(index, 'name', event.target.value)
+                      }
+                      placeholder="Name"
+                      aria-label={`Member ${index + 1} name`}
+                    />
+                    <input
+                      className="input-field mt-0"
+                      type="email"
+                      value={member.email}
+                      onChange={(event) =>
+                        updateMember(index, 'email', event.target.value)
+                      }
+                      placeholder="Google account email"
+                      aria-label={`Member ${index + 1} email`}
+                    />
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      onClick={() =>
+                        setMembers((current) =>
+                          current.filter((_, itemIndex) => itemIndex !== index),
+                        )
+                      }
+                      disabled={members.length === 1}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {members.length < memberLimit - 1 ? (
+                <button
+                  type="button"
+                  className="btn-secondary mt-3"
+                  onClick={() =>
+                    setMembers((current) => [...current, blankMember()])
+                  }
+                >
+                  Add another
+                </button>
+              ) : null}
+            </div>
+            <div className="rounded-2xl bg-emerald/8 px-4 py-3 text-sm text-medium">
+              Need a custom high-capacity group? Contact{' '}
+              <a className="link-accent" href="mailto:contact@eonlint.com">
+                contact@eonlint.com
+              </a>
+              .
+            </div>
+            {isCreatingAnother ? (
+              <button
+                type="button"
+                className="btn-ghost w-full"
+                onClick={() => navigate(-1)}
+                disabled={isSaving}
+              >
+                Cancel
+              </button>
+            ) : null}
+            <button
+              className="btn-primary w-full"
+              disabled={isSaving || hasReachedCreateLimit}
+            >
+              {isSaving ? 'Creating group…' : 'Create group'}
+            </button>
+            {hasReachedCreateLimit ? (
+              <p className="alert-error">
+                Your {planLabel} plan can create up to {createGroupLimit}{' '}
+                groups. Upgrade your plan or delete one first.
+              </p>
+            ) : null}
+          </form>
+        </main>
+      </div>
     </div>
   )
 }

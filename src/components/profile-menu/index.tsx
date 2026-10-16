@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../hooks/use-auth'
+import { subscriptionHistoryLabel } from '../../constants/subscription-plans'
 import Avatar from '../avatar'
 
 const ProfileMenu = () => {
@@ -67,6 +68,24 @@ const ProfileMenu = () => {
               {user.name}
             </p>
             <p className="truncate text-xs text-low">{user.email}</p>
+            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-emerald">
+              {user.subscription.plan} plan
+              {user.subscription.billingInterval
+                ? ` · ${user.subscription.billingInterval}`
+                : ''}{' '}
+              · {user.subscription.maxCreatedGroups} create /{' '}
+              {user.subscription.maxJoinedGroups} join
+            </p>
+            <p className="mt-1 text-xs text-low">
+              {subscriptionHistoryLabel(user.subscription.historyMonths)} ·{' '}
+              {user.subscription.monthlyDebtLimit.toLocaleString('en-IN')}{' '}
+              debts/month
+            </p>
+            <p className="mt-1 text-xs text-low">
+              {user.subscription.monthlyDebtUsed.toLocaleString('en-IN')} used
+              this month · {user.subscription.maxDailyEmailAlerts} email alert
+              per day
+            </p>
           </div>
 
           <Link

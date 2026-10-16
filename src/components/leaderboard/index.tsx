@@ -6,6 +6,7 @@ import BoardCheer from '../board-cheer'
 import DayRangeFilter from '../day-range-filter'
 import LeaderboardFrame from '../leaderboard-frame'
 import { StatCardSkeleton } from '../skeleton'
+import { subscriptionHistoryDays } from '../../constants/subscription-plans'
 import { useAuth } from '../../hooks/use-auth'
 import { formatRupee } from '../../lib/debt-utils'
 import {
@@ -72,6 +73,11 @@ const Leaderboard = () => {
   const [error, setError] = useState('')
   const [board, setBoard] = useState<BoardId>('receivers')
   const [range, setRange] = useState<DayRange>(30)
+  const historyDayLimit = subscriptionHistoryDays(
+    activeGroup?.subscription.historyMonths ?? 2,
+  )
+  const effectiveRange =
+    range <= historyDayLimit ? range : (historyDayLimit as DayRange)
 
   useEffect(() => {
     if (!activeGroup) return
@@ -105,8 +111,8 @@ const Leaderboard = () => {
   }, [activeGroup])
 
   const people = useMemo(
-    () => buildLeaderboard(filterDebtsByDays(debts, range)),
-    [debts, range],
+    () => buildLeaderboard(filterDebtsByDays(debts, effectiveRange)),
+    [debts, effectiveRange],
   )
   const ranked = useMemo(() => rankBoard(people, board), [board, people])
   const maxAmount = ranked[0]?.amount ?? 0
@@ -124,7 +130,13 @@ const Leaderboard = () => {
     <LeaderboardFrame
       title="Leaderboard"
       subtitle="Visible to members of this group. Scores come from real karja."
-      headerAside={<DayRangeFilter value={range} onChange={setRange} />}
+      headerAside={
+        <DayRangeFilter
+          value={effectiveRange}
+          maxDays={historyDayLimit}
+          onChange={setRange}
+        />
+      }
     >
       {error ? <p className="alert-error">{error}</p> : null}
 
@@ -201,7 +213,7 @@ const Leaderboard = () => {
             ))}
           </div>
           <p className="mt-3 text-xs text-medium sm:text-sm">
-            {BOARDS.find((item) => item.id === board)?.summary(range)}
+            {BOARDS.find((item) => item.id === board)?.summary(effectiveRange)}
           </p>
         </div>
 
@@ -209,7 +221,7 @@ const Leaderboard = () => {
           <div className="space-y-3">
             {!isLoading && ranked.length === 0 ? (
               <p className="glass-card px-5 py-8 text-center text-sm text-low">
-                Nothing on this board in the last {range} days.
+                Nothing on this board in the last {effectiveRange} days.
               </p>
             ) : null}
 
