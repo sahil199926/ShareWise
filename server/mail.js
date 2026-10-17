@@ -11,6 +11,9 @@ export const sendMail = async (env, message) => {
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
+      ...(message.idempotencyKey
+        ? { 'Idempotency-Key': message.idempotencyKey }
+        : {}),
     },
     body: JSON.stringify({
       from: `Karja Tracker <${from}>`,

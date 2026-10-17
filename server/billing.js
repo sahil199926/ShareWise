@@ -5,6 +5,8 @@ import {
   X509Certificate,
 } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
+import { sendMail } from './mail.js'
+import { cancellationMail } from './subscription-mail.js'
 
 const razorpayBase = 'https://api.razorpay.com/v1'
 const firebaseCertUrl =
@@ -470,9 +472,24 @@ export const cancelPaidSubscription = async (request, env = process.env) => {
       },
     )
     if (error) throw new Error(error.message)
+    let emailSent = false
+    try {
+      const mail = await sendMail(
+        env,
+        cancellationMail(user, current, deletedDebts),
+      )
+      emailSent = mail.sent
+    } catch {
+      // The plan is already cancelled. A mail outage must not report a
+      // failed cancellation or attempt another Razorpay operation.
+    }
     return {
       status: 200,
-      body: { active: true, deletedDebts: Number(deletedDebts || 0) },
+      body: {
+        active: true,
+        deletedDebts: Number(deletedDebts || 0),
+        emailSent,
+      },
     }
   } catch (error) {
     const message =

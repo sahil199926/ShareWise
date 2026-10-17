@@ -29,6 +29,7 @@ export const cancelPaidPlan = () =>
   billingRequest('/api/billing-cancel', {}) as Promise<{
     active: boolean
     deletedDebts: number
+    emailSent: boolean
   }>
 
 const billingRequest = async (path: string, body: object) => {

@@ -293,7 +293,7 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
       const result = await cancelPaidPlan()
       setPendingChange(null)
       setNotice(
-        `Your paid plan has been cancelled and Free is active. ${result.deletedDebts.toLocaleString('en-IN')} older shared debt ${result.deletedDebts === 1 ? 'record was' : 'records were'} permanently deleted.`,
+        `Your paid plan has been cancelled and Free is active. ${result.deletedDebts.toLocaleString('en-IN')} older shared debt ${result.deletedDebts === 1 ? 'record was' : 'records were'} permanently deleted. ${result.emailSent ? 'We sent a confirmation email.' : 'The confirmation email could not be sent; your cancellation still succeeded.'}`,
       )
       await refreshContext()
     } catch (reason) {
