@@ -44,7 +44,7 @@ const AppHeader = ({
     createdGroupCount < (user?.subscription.maxCreatedGroups ?? 1)
 
   return (
-    <header className="border-b border-white/50 bg-white/45 backdrop-blur-xl">
+    <header className="relative z-40 border-b border-white/50 bg-white/45 backdrop-blur-xl">
       <SubscriptionBanner />
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-3 py-3 sm:py-4">
