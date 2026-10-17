@@ -161,6 +161,21 @@ const currentSubscription = async (db, id) => {
   return data
 }
 
+const terminalRazorpayStatuses = new Set(['cancelled', 'completed', 'expired'])
+
+const cancelRazorpayNow = async (env, providerSubscriptionId) => {
+  const remote = await razorpay(env, `/subscriptions/${providerSubscriptionId}`)
+  if (!terminalRazorpayStatuses.has(remote.status)) {
+    await razorpay(
+      env,
+      `/subscriptions/${providerSubscriptionId}/cancel`,
+      'POST',
+      { cancel_at_cycle_end: false },
+    )
+  }
+  return remote
+}
+
 export const paidPeriod = (subscription) => {
   const start = Number(subscription.current_start)
   const end = Number(subscription.current_end)
@@ -191,20 +206,7 @@ const settleCheckout = async (db, env, checkout) => {
 
   const old = await currentSubscription(db, checkout.previous_subscription_id)
   if (old?.payment_provider === 'razorpay' && old.provider_subscription_id) {
-    const prior = await razorpay(
-      env,
-      `/subscriptions/${old.provider_subscription_id}`,
-    )
-    if (!['cancelled', 'completed'].includes(prior.status)) {
-      await razorpay(
-        env,
-        `/subscriptions/${old.provider_subscription_id}/cancel`,
-        'POST',
-        {
-          cancel_at_cycle_end: false,
-        },
-      )
-    }
+    await cancelRazorpayNow(env, old.provider_subscription_id)
   }
 
   const { data, error } = await db.rpc('activate_razorpay_checkout', {
@@ -416,6 +418,65 @@ export const chooseFreeSubscription = async (request, env = process.env) => {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : 'Could not choose Free'
+    return fail(message === 'Sign in to continue' ? 401 : 500, message)
+  }
+}
+
+export const cancelPaidSubscription = async (request, env = process.env) => {
+  try {
+    const db = database(env)
+    const user = await signedInUser(request, db, env)
+    const current = await currentSubscription(db, user.active_subscription_id)
+    if (!current || current.plan_id === 'free')
+      return fail(409, 'No paid subscription is active')
+
+    const { data: open, error: openError } = await db
+      .from('subscription_checkouts')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'created')
+    if (openError) throw new Error(openError.message)
+    for (const pending of open || []) {
+      const remote = await razorpay(
+        env,
+        `/subscriptions/${pending.provider_subscription_id}`,
+      )
+      if (paidPeriod(remote))
+        return fail(
+          409,
+          'A payment has completed. Refresh your plan before cancelling.',
+        )
+      if (!terminalRazorpayStatuses.has(remote.status))
+        await cancelRazorpayNow(env, pending.provider_subscription_id)
+      const { error } = await db
+        .from('subscription_checkouts')
+        .update({ status: 'cancelled' })
+        .eq('id', pending.id)
+        .eq('status', 'created')
+      if (error) throw new Error(error.message)
+    }
+
+    if (current.payment_provider === 'razorpay') {
+      if (!isId(current.provider_subscription_id, 'sub'))
+        throw new Error('The Razorpay subscription ID is missing')
+      await cancelRazorpayNow(env, current.provider_subscription_id)
+    }
+
+    const { data: deletedDebts, error } = await db.rpc(
+      'cancel_paid_subscription_to_free',
+      {
+        p_user_id: user.id,
+        p_expected_subscription_id: current.id,
+      },
+    )
+    if (error) throw new Error(error.message)
+    return {
+      status: 200,
+      body: { active: true, deletedDebts: Number(deletedDebts || 0) },
+    }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Could not cancel subscription'
     return fail(message === 'Sign in to continue' ? 401 : 500, message)
   }
 }

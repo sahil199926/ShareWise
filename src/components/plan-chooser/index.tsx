@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { SubscriptionPlanDefinition } from '../../types/subscription'
 import {
+  cancelPaidPlan,
   chooseFreePlan,
   confirmSubscription,
   listSubscriptionPlans,
@@ -58,6 +59,7 @@ const historyLabel = (months: number) =>
     : `${months} ${months === 1 ? 'month' : 'months'}`
 
 const price = (value: number) => `₹${value.toLocaleString('en-IN')}`
+const planRank = { free: 0, basic: 1, advanced: 2, pro: 3 }
 
 const initialBilling = (): 'monthly' | 'yearly' => {
   try {
@@ -80,11 +82,56 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
   const [plans, setPlans] = useState<SubscriptionPlanDefinition[]>([])
   const [billing, setBilling] = useState<'monthly' | 'yearly'>(initialBilling)
   const [confirmFree, setConfirmFree] = useState(false)
+  const [pendingChange, setPendingChange] = useState<
+    | { kind: 'cancel' }
+    | { kind: 'downgrade'; plan: SubscriptionPlanDefinition }
+    | null
+  >(null)
   const [working, setWorking] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const freeTriggerRef = useRef<HTMLButtonElement>(null)
   const compareRef = useRef<HTMLButtonElement>(null)
+  const changeTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const changeBackRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    if (!pendingChange) return
+    const trigger = changeTriggerRef.current
+    const frame = window.requestAnimationFrame(() =>
+      changeBackRef.current?.focus(),
+    )
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !working) {
+        setPendingChange(null)
+        setError('')
+      }
+      if (event.key !== 'Tab') return
+      const dialog = document.querySelector(
+        `[role="dialog"][aria-label="${pendingChange.kind === 'cancel' ? 'Confirm subscription cancellation' : 'Confirm plan downgrade'}"]`,
+      )
+      const buttons = Array.from(
+        dialog?.querySelectorAll<HTMLButtonElement>('button:not([disabled])') ??
+          [],
+      )
+      const first = buttons[0]
+      const last = buttons.at(-1)
+      if (!first || !last) return
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('keydown', onKeyDown)
+      trigger?.focus()
+    }
+  }, [pendingChange, working])
 
   useEffect(() => {
     if (!confirmFree) return
@@ -224,6 +271,40 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
     }
   }
 
+  const requestPaidPlan = (
+    plan: SubscriptionPlanDefinition,
+    trigger: HTMLButtonElement,
+  ) => {
+    const oldPlan = user?.subscription.storedPlan || 'free'
+    if (planRank[plan.id] < planRank[oldPlan]) {
+      setError('')
+      changeTriggerRef.current = trigger
+      setPendingChange({ kind: 'downgrade', plan })
+    } else {
+      void selectPaid(plan)
+    }
+  }
+
+  const cancelPaid = async () => {
+    setError('')
+    setNotice('')
+    setWorking(true)
+    try {
+      const result = await cancelPaidPlan()
+      setPendingChange(null)
+      setNotice(
+        `Your paid plan has been cancelled and Free is active. ${result.deletedDebts.toLocaleString('en-IN')} older shared debt ${result.deletedDebts === 1 ? 'record was' : 'records were'} permanently deleted.`,
+      )
+      await refreshContext()
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : 'Could not cancel plan',
+      )
+    } finally {
+      setWorking(false)
+    }
+  }
+
   const free = plans.find((plan) => plan.id === 'free')
   return (
     <div>
@@ -277,6 +358,10 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
           const active =
             user?.subscription.plan === plan.id &&
             !user.subscription.accessBlocked
+          const currentPaid =
+            plan.id !== 'free' &&
+            user?.subscription.storedPlan === plan.id &&
+            Boolean(user.subscription.subscriptionId)
           const sameBilling = user?.subscription.billingInterval === billing
           const amount =
             billing === 'monthly' ? plan.monthlyPriceInr : plan.yearlyPriceInr
@@ -347,7 +432,9 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
                   type="button"
                   className={`btn-primary mt-5 w-full ${featured ? 'plan-featured-action' : ''}`}
                   disabled={working || (active && sameBilling)}
-                  onClick={() => void selectPaid(plan)}
+                  onClick={(event) =>
+                    requestPaidPlan(plan, event.currentTarget)
+                  }
                 >
                   {active && sameBilling
                     ? 'Current plan'
@@ -358,6 +445,20 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
                         : `Choose ${plan.name}`}
                 </button>
               )}
+              {currentPaid && !onboarding ? (
+                <button
+                  type="button"
+                  className="mt-3 text-sm font-medium text-red-700 underline underline-offset-4 hover:text-red-900 disabled:opacity-50"
+                  disabled={working}
+                  onClick={(event) => {
+                    setError('')
+                    changeTriggerRef.current = event.currentTarget
+                    setPendingChange({ kind: 'cancel' })
+                  }}
+                >
+                  Cancel subscription
+                </button>
+              ) : null}
             </article>
           )
         })}
@@ -429,6 +530,78 @@ const PlanChooser = ({ onboarding = false, onActivated }: Props) => {
                   onClick={() => void selectFree()}
                 >
                   {working ? 'Please wait…' : 'I understand, use Free'}
+                </button>
+              </div>
+            </Modal>,
+            document.body,
+          )
+        : null}
+      {pendingChange
+        ? createPortal(
+            <Modal
+              isOpen
+              variant="dialog"
+              ariaLabel={
+                pendingChange.kind === 'cancel'
+                  ? 'Confirm subscription cancellation'
+                  : 'Confirm plan downgrade'
+              }
+              panelClassName="max-w-lg"
+            >
+              <h3 className="text-xl font-semibold text-high">
+                {pendingChange.kind === 'cancel'
+                  ? 'Cancel and move to Free?'
+                  : `Move to ${pendingChange.plan.name}?`}
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-medium">
+                {pendingChange.kind === 'cancel'
+                  ? `Your paid access will end immediately. Free allows ${free?.maxCreatedGroups ?? 1} created group, ${free?.maxJoinedGroups ?? 2} joined groups, ${free?.maxMembersPerGroup ?? 3} people per group, ${historyLabel(free?.historyMonths ?? 1)} of history, and ${free?.monthlyDebtLimit ?? 30} new debts per month. Any Razorpay renewal will be cancelled immediately; unused paid time is not credited.`
+                  : `Once your new payment succeeds, ${pendingChange.plan.name} limits apply immediately: ${pendingChange.plan.maxCreatedGroups} created groups, ${pendingChange.plan.maxJoinedGroups} joined groups, ${pendingChange.plan.maxMembersPerGroup} people per group, ${historyLabel(pendingChange.plan.historyMonths)} of history, and ${pendingChange.plan.monthlyDebtLimit} new debts per month. The full new price is charged now; unused paid time is not credited.`}
+              </p>
+              <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm leading-6 text-amber-900">
+                Older shared debts beyond the new history window in groups
+                controlled by your plan will be permanently deleted for
+                everyone. Remaining debts are kept, but new debt creation may
+                freeze where the lower limits are already reached. This cannot
+                be undone.
+              </p>
+              {error ? (
+                <p className="alert-error mt-4" role="alert">
+                  {error}
+                </p>
+              ) : null}
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  ref={changeBackRef}
+                  type="button"
+                  className="btn-secondary px-5 py-2.5"
+                  disabled={working}
+                  onClick={() => {
+                    setPendingChange(null)
+                    setError('')
+                  }}
+                >
+                  Keep current plan
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary px-5 py-2.5"
+                  disabled={working}
+                  onClick={() => {
+                    if (pendingChange.kind === 'cancel') {
+                      void cancelPaid()
+                    } else {
+                      const nextPlan = pendingChange.plan
+                      setPendingChange(null)
+                      void selectPaid(nextPlan)
+                    }
+                  }}
+                >
+                  {working
+                    ? 'Please wait…'
+                    : pendingChange.kind === 'cancel'
+                      ? 'Cancel subscription now'
+                      : 'Continue to payment'}
                 </button>
               </div>
             </Modal>,

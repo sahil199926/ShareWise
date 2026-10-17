@@ -14,6 +14,11 @@ export function chooseFreeSubscription(
   env?: Record<string, string | undefined>,
 ): Promise<BillingResult>
 
+export function cancelPaidSubscription(
+  request: BillingRequest,
+  env?: Record<string, string | undefined>,
+): Promise<BillingResult>
+
 export function confirmSubscription(
   request: BillingRequest,
   env?: Record<string, string | undefined>,

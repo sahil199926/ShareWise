@@ -25,6 +25,12 @@ export const chooseFreePlan = async () => {
   await billingRequest('/api/billing-free', {})
 }
 
+export const cancelPaidPlan = () =>
+  billingRequest('/api/billing-cancel', {}) as Promise<{
+    active: boolean
+    deletedDebts: number
+  }>
+
 const billingRequest = async (path: string, body: object) => {
   const token = await getFirebaseAccessToken()
   if (!token) throw new Error('Sign in to continue')
