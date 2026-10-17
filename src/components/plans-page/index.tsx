@@ -4,13 +4,9 @@ import PlanChooser from '../plan-chooser'
 import Logo from '../logo'
 
 const PlansPage = () => {
-  const { user, groups, activeGroup, logout } = useAuth()
+  const { user, activeGroup, logout } = useAuth()
   const navigate = useNavigate()
-  const canChoose =
-    groups.length === 0 ||
-    groups.some((group) => group.role === 'owner' || group.role === 'admin')
   if (!user) return null
-  if (!canChoose) return <Navigate to="/dashboard" replace />
   if (!activeGroup && user.planChoiceCompleted)
     return <Navigate to="/onboarding" replace />
 

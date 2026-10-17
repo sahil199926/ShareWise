@@ -182,9 +182,9 @@ const Profile = () => {
   const joinedGroupCount = groups.filter(
     (group) => group.role !== 'owner',
   ).length
-  const canChoosePlan =
-    groups.length === 0 ||
-    groups.some((group) => group.role === 'owner' || group.role === 'admin')
+  const controlsGroup = groups.some(
+    (group) => group.role === 'owner' || group.role === 'admin',
+  )
   const debtUsagePercent = Math.min(
     100,
     subscription.monthlyDebtLimit > 0
@@ -549,25 +549,20 @@ const Profile = () => {
         </section>
 
         <section id="plans" className="card mt-6 scroll-mt-8 p-6 sm:p-8">
-          {canChoosePlan ? (
-            <>
-              <p className="mb-5 text-sm text-low">
-                This plan belongs to your account. A group uses its most
-                recently added or promoted admin’s plan for shared limits. If
-                there is no admin, it uses the owner’s plan. Your upgrade
-                changes a group’s capacity only while you control its plan.
-              </p>
-              <PlanChooser />
-            </>
-          ) : (
-            <div>
-              <h2 className="text-xl font-semibold text-high">Plan upgrades</h2>
-              <p className="mt-2 text-sm text-low">
-                A group admin chooses and pays for the plan that controls their
-                group. Ask your admin if you need more capacity.
-              </p>
-            </div>
-          )}
+          <p className="mb-5 text-sm text-low">
+            This plan belongs to your account. A group uses its most recently
+            added or promoted admin’s plan for shared limits; if there is no
+            admin, it uses the owner’s plan. Your upgrade changes a group’s
+            capacity only while you control its plan.
+          </p>
+          {groups.length > 0 && !controlsGroup ? (
+            <p className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+              You can upgrade your own plan now. It will not change the limits
+              of groups where you are only a member. Your plan applies if you
+              create a group or become the admin who controls one.
+            </p>
+          ) : null}
+          <PlanChooser />
         </section>
 
         <p className="mt-4 text-center text-xs text-low">

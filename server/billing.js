@@ -148,28 +148,6 @@ const signedInUser = async (request, db, env) => {
   return data
 }
 
-const canChoosePlan = async (db, userId) => {
-  const { data, error } = await db
-    .from('group_members')
-    .select('role, group_id, groups!inner(archived_at)')
-    .eq('user_id', userId)
-    .in('role', ['owner', 'admin'])
-    .eq('status', 'active')
-    .is('archived_at', null)
-    .is('groups.archived_at', null)
-    .limit(1)
-  if (error) throw new Error(error.message)
-  if (data?.length) return true
-  const { count, error: groupError } = await db
-    .from('group_members')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .is('archived_at', null)
-  if (groupError) throw new Error(groupError.message)
-  return count === 0
-}
-
 const currentSubscription = async (db, id) => {
   if (!id) return null
   const { data, error } = await db
@@ -245,8 +223,6 @@ export const startSubscription = async (request, env = process.env) => {
   try {
     const db = database(env)
     const user = await signedInUser(request, db, env)
-    if (!(await canChoosePlan(db, user.id)))
-      return fail(403, 'Only group admins can choose a paid plan')
     const { planId, billingInterval } = request.body || {}
     if (
       !['basic', 'advanced', 'pro'].includes(planId) ||
@@ -395,8 +371,6 @@ export const chooseFreeSubscription = async (request, env = process.env) => {
   try {
     const db = database(env)
     const user = await signedInUser(request, db, env)
-    if (!(await canChoosePlan(db, user.id)))
-      return fail(403, 'Only group admins can choose a plan')
     const current = await currentSubscription(db, user.active_subscription_id)
     if (current?.plan_id !== 'free')
       return fail(409, 'A paid subscription must be changed through checkout')
